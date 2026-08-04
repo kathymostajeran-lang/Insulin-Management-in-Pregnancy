@@ -40,6 +40,8 @@ import {
   hypoThreshold,
   classifyHypoglycemia,
   inpatientRescue,
+  steroidEpisode,
+  steroidBgAction,
 } from "./dosing";
 
 describe("pyRound (half-to-even, matches the reference engine)", () => {
@@ -290,6 +292,38 @@ describe("Hypoglycemia module (§12)", () => {
     const mild = inpatientRescue(50, true, true);
     expect(mild.action).toContain("4 oz");
     expect(mild.cautions[0]).toContain("complex CHO");
+  });
+});
+
+describe("Steroid module (§9)", () => {
+  it("classifies the episode by hours since first dose", () => {
+    expect(steroidEpisode(24, true).phase).toBe("pre_peak");
+    expect(steroidEpisode(60, false).phase).toBe("peak");
+    expect(steroidEpisode(100, false).phase).toBe("resolution");
+    expect(steroidEpisode(400, false).phase).toBe("resolved");
+  });
+
+  it("suspends baseline titration through ~2 weeks and schedules reviews", () => {
+    expect(steroidEpisode(24, true).baselineTitrationSuspended).toBe(true);
+    expect(steroidEpisode(24, true).nextReviewDay).toBe(7);
+    expect(steroidEpisode(200, false).nextReviewDay).toBe(14); // ~8.3 days
+    const resolved = steroidEpisode(400, false);
+    expect(resolved.baselineTitrationSuspended).toBe(false);
+    expect(resolved.nextReviewDay).toBeNull();
+  });
+
+  it("sets the monitoring cadence by NPO status inside the 72-h window", () => {
+    expect(steroidEpisode(24, true).monitoringActive).toBe(true);
+    expect(steroidEpisode(24, true).monitoringCadence).toContain("q8h");
+    expect(steroidEpisode(24, false).monitoringCadence).toContain("AC and HS");
+    expect(steroidEpisode(100, false).monitoringActive).toBe(false);
+  });
+
+  it("escalates above 200 mg/dL, routing by insulin status", () => {
+    expect(steroidBgAction(220, true).escalate).toBe(true);
+    expect(steroidBgAction(220, true).message).toContain("aggressively");
+    expect(steroidBgAction(220, false).message).toContain("carbohydrate-counting");
+    expect(steroidBgAction(180, false).escalate).toBe(false);
   });
 });
 

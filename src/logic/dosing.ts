@@ -637,6 +637,105 @@ export const CGM_PHENOTYPES: ReadonlyArray<{ label: string; meanMgdl: number; fl
   { label: "Peak overnight hyperglycemia", meanMgdl: 166, flags: ["LGA OR 3.72", "Neo hypo OR 3.53", "Preeclampsia OR 2.54", "NICU OR 3.15"] },
 ];
 
+// ── §9 Antenatal corticosteroid hyperglycemia (Module G) ────────────────────
+// Sole source: UC23. A steroid course transiently raises glucose (peak 48–72 h,
+// may persist 1–2 weeks). The load-bearing safety behavior: while a steroid
+// episode is active, SUSPEND the baseline titration engine so a transient spike
+// does not permanently escalate the standing regimen, and schedule
+// de-escalation reviews at day 7 and day 14.
+export const STEROID = {
+  peakHours: [48, 72] as [number, number],
+  monitorHours: 72,
+  persistWeeks: [1, 2] as [number, number],
+  typicalMaxBgNondiabetic: 180,
+  escalateIfBgGt: 200,
+  suspendTitrationDays: [7, 14] as [number, number],
+  otherAmplifiers: ["obesity", "sepsis or other infection"],
+  source: "UC23",
+} as const;
+
+export type SteroidPhase = "pre_peak" | "peak" | "resolution" | "resolved";
+
+export interface SteroidEpisode {
+  hoursSinceFirstDose: number;
+  phase: SteroidPhase;
+  phaseLabel: string;
+  /** The 72-h post-dose screening window is active. */
+  monitoringActive: boolean;
+  monitoringCadence: string;
+  /** Baseline titration is suspended (through ~2 weeks). */
+  baselineTitrationSuspended: boolean;
+  /** Next scheduled de-escalation review (post-dose day), or null when resolved. */
+  nextReviewDay: number | null;
+}
+
+const HOURS_PER_DAY = 24;
+
+/**
+ * Classify a steroid episode from hours since the FIRST dose. `npo` selects the
+ * monitoring cadence (q8h while NPO; AC + HS on a regular diet).
+ */
+export function steroidEpisode(hoursSinceFirstDose: number, npo: boolean): SteroidEpisode {
+  const h = hoursSinceFirstDose;
+  const twoWeeks = 14 * HOURS_PER_DAY;
+  const oneWeek = 7 * HOURS_PER_DAY;
+
+  let phase: SteroidPhase;
+  let phaseLabel: string;
+  if (h < STEROID.peakHours[0]) {
+    phase = "pre_peak";
+    phaseLabel = "Before peak — hyperglycemia building (onset can be delayed days)";
+  } else if (h <= STEROID.peakHours[1]) {
+    phase = "peak";
+    phaseLabel = "Peak response (48–72 h)";
+  } else if (h <= twoWeeks) {
+    phase = "resolution";
+    phaseLabel = "Resolving — effect may persist 1–2 weeks";
+  } else {
+    phase = "resolved";
+    phaseLabel = "Resolved — expect return to pretreatment glucose";
+  }
+
+  const monitoringActive = h <= STEROID.monitorHours;
+  const baselineTitrationSuspended = h <= twoWeeks;
+  const nextReviewDay = h < oneWeek ? 7 : h <= twoWeeks ? 14 : null;
+
+  return {
+    hoursSinceFirstDose: h,
+    phase,
+    phaseLabel,
+    monitoringActive,
+    monitoringCadence: npo ? "q8h (while NPO)" : "AC and HS (on a regular diet)",
+    baselineTitrationSuspended,
+    nextReviewDay,
+  };
+}
+
+export interface SteroidBgAction {
+  escalate: boolean;
+  message: string;
+}
+
+/**
+ * BG-threshold action during a steroid episode. Above 200 mg/dL, escalate;
+ * insulin-treated patients increase doses aggressively and proportionately,
+ * others start a carb-counting diet with 7×/day checks and PRN RAA.
+ */
+export function steroidBgAction(bg: number, onInsulin: boolean): SteroidBgAction {
+  if (bg > STEROID.escalateIfBgGt) {
+    return {
+      escalate: true,
+      message: onInsulin
+        ? "Increase insulin doses aggressively and proportionately to the hyperglycemia; add PRN rapid-acting analog for BG > 200. This is a transient escalation — do NOT bake it into the baseline regimen."
+        : "Start a carbohydrate-counting pregnancy diet, check BG 7×/day, and give PRN rapid-acting analog for BG > 200.",
+    };
+  }
+  return {
+    escalate: false,
+    message: "At or below 200 mg/dL. After the 72-h screening window, monitoring can be discontinued if BG stays < 200.",
+  };
+}
+
 // ── §12 Hypoglycemia (Module J) ─────────────────────────────────────────────
 // Threshold is C-01: ADA26 <70 meter / <63 sensor (default), UC23 <60, VB24
 // 65–70. The inpatient rescue ladder is UC23 and is internally calibrated to
