@@ -5,7 +5,7 @@
  */
 import { useState } from "react";
 import { csiiInitiation } from "../logic/dosing";
-import { Kicker, NumberField, NeedInput, Alert, Cite } from "./controls";
+import { Kicker, NumberField, NeedInput, Cite } from "./controls";
 import type { TabProps } from "./types";
 
 export function PumpTab({ model }: TabProps) {
@@ -58,15 +58,6 @@ export function PumpTab({ model }: TabProps) {
           <Cite>Agent: aspart or lispro. Recompute at 18 / 26 / 36 wk boundaries.</Cite>
         </div>
       </section>
-
-      <Alert title="C-14 — resolved in the engine">
-        <p style={{ marginBottom: 0 }}>
-          The UC23 prose says the key basal rate is “TDD ÷ 24”, but its own worked example divides the
-          <em> total daily basal</em> (50% of TDD) by 24. Implementing the prose literally doubles the
-          basal rate. This engine uses the worked example and pins it in the regression suite.
-          <Cite> spec §7 · C-14</Cite>
-        </p>
-      </Alert>
     </>
   );
 }
