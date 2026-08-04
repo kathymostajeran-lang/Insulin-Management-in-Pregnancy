@@ -42,6 +42,8 @@ import {
   inpatientRescue,
   steroidEpisode,
   steroidBgAction,
+  dkaDiagnosis,
+  dkaIcuCriteria,
 } from "./dosing";
 
 describe("pyRound (half-to-even, matches the reference engine)", () => {
@@ -324,6 +326,28 @@ describe("Steroid module (§9)", () => {
     expect(steroidBgAction(220, true).message).toContain("aggressively");
     expect(steroidBgAction(220, false).message).toContain("carbohydrate-counting");
     expect(steroidBgAction(180, false).escalate).toBe(false);
+  });
+});
+
+describe("DKA module (§10)", () => {
+  it("requires acidemia + low bicarb + high anion gap + ketones", () => {
+    const full = dkaDiagnosis({ ph: 7.2, bicarb: 12, anionGap: 18, ketonesElevated: true });
+    expect(full.isDka).toBe(true);
+    // Missing ketones → not DKA
+    expect(dkaDiagnosis({ ph: 7.2, bicarb: 12, anionGap: 18, ketonesElevated: false }).isDka).toBe(false);
+    // Normal pH → not DKA
+    expect(dkaDiagnosis({ ph: 7.38, bicarb: 12, anionGap: 18, ketonesElevated: true }).isDka).toBe(false);
+  });
+
+  it("flags euglycemic DKA (glucose not part of the criteria)", () => {
+    expect(dkaDiagnosis({ ph: 7.2, bicarb: 12, anionGap: 18, ketonesElevated: true, glucose: 180 }).euglycemic).toBe(true);
+    expect(dkaDiagnosis({ ph: 7.2, bicarb: 12, anionGap: 18, ketonesElevated: true, glucose: 380 }).euglycemic).toBe(false);
+  });
+
+  it("escalates to ICU on any of altered sensorium / pH<7.1 / abnormal EKG / Kussmaul", () => {
+    expect(dkaIcuCriteria({ alteredSensorium: false, ph: 7.05, abnormalEkg: false, kussmaul: false }).indicated).toBe(true);
+    expect(dkaIcuCriteria({ alteredSensorium: true, ph: 7.2, abnormalEkg: false, kussmaul: false }).reasons).toContain("Altered sensorium");
+    expect(dkaIcuCriteria({ alteredSensorium: false, ph: 7.2, abnormalEkg: false, kussmaul: false }).indicated).toBe(false);
   });
 });
 

@@ -736,6 +736,85 @@ export function steroidBgAction(bg: number, onInsulin: boolean): SteroidBgAction
   };
 }
 
+// ── §10 Diabetic ketoacidosis (Module H) ────────────────────────────────────
+// Sole source: UC23. REFERENCE PROTOCOL ONLY — this app does not automate DKA
+// dosing (an ICU-level condition). The engine here supports recognition
+// (including euglycemic DKA, which does not require hyperglycemia) and the ICU
+// escalation check; the fluid/insulin/electrolyte protocol is displayed as
+// reference values, never computed into orders. HS-14: while DKA is active,
+// suspend all routine dosing modules and manage DKA only.
+export const DKA = {
+  diagnostic: { phMax: 7.3, bicarbMaxMeqL: 15, anionGapMin: 10 },
+  incidencePregestationalT1dmPct: [5, 10] as [number, number],
+  euglycemicMoreCommon: true,
+  // Displayed as reference ranges only — NOT used to compute an order.
+  insulin: {
+    loadingUnitsPerKg: [0.1, 0.4] as [number, number],
+    maintenanceUnitsPerHour: [2, 10] as [number, number],
+    doubleIfNotDecreasedPct: 20,
+    doubleWindowHours: 2,
+  },
+  fluids: {
+    hour1LitersNs: 1,
+    hours2to4LitersPerHour: [0.5, 1.0] as [number, number],
+    thereafterMlPerHour: 250,
+    thereafterFluid: "0.45% NS",
+    switchToD5HalfNsWhenBgLt: 300,
+  },
+  potassium: { normalOrLowMeqPerHourMax: [15, 20] as [number, number] },
+  phosphateReplaceIfLtMgDl: 1.0,
+  doNotDeliverDuringDka: true,
+  source: "UC23",
+} as const;
+
+export interface DkaLabs {
+  ph: number | null;
+  bicarb: number | null;
+  anionGap: number | null;
+  ketonesElevated: boolean;
+  glucose?: number | null;
+}
+
+export interface DkaDiagnosis {
+  isDka: boolean;
+  criteria: { acidemia: boolean; lowBicarb: boolean; highAnionGap: boolean; ketones: boolean };
+  /** DKA present with glucose not markedly elevated (implementation heuristic to
+   *  surface euglycemic DKA, which is more common in pregnancy). */
+  euglycemic: boolean;
+}
+
+/** Classic DKA requires acidemia + low bicarbonate + high anion gap + ketones.
+ *  Glucose is intentionally NOT part of the criteria (euglycemic DKA). */
+export function dkaDiagnosis(labs: DkaLabs): DkaDiagnosis {
+  const acidemia = labs.ph !== null && labs.ph < DKA.diagnostic.phMax;
+  const lowBicarb = labs.bicarb !== null && labs.bicarb < DKA.diagnostic.bicarbMaxMeqL;
+  const highAnionGap = labs.anionGap !== null && labs.anionGap > DKA.diagnostic.anionGapMin;
+  const ketones = labs.ketonesElevated;
+  const isDka = acidemia && lowBicarb && highAnionGap && ketones;
+  const euglycemic = isDka && labs.glucose !== null && labs.glucose !== undefined && labs.glucose < 250;
+  return { isDka, criteria: { acidemia, lowBicarb, highAnionGap, ketones }, euglycemic };
+}
+
+export interface DkaIcu {
+  indicated: boolean;
+  reasons: string[];
+}
+
+/** ICU consideration: altered sensorium, pH < 7.1, abnormal EKG, or Kussmaul. */
+export function dkaIcuCriteria(opts: {
+  alteredSensorium: boolean;
+  ph: number | null;
+  abnormalEkg: boolean;
+  kussmaul: boolean;
+}): DkaIcu {
+  const reasons: string[] = [];
+  if (opts.alteredSensorium) reasons.push("Altered sensorium");
+  if (opts.ph !== null && opts.ph < 7.1) reasons.push("pH < 7.1");
+  if (opts.abnormalEkg) reasons.push("Abnormal EKG");
+  if (opts.kussmaul) reasons.push("Kussmaul respiration");
+  return { indicated: reasons.length > 0, reasons };
+}
+
 // ── §12 Hypoglycemia (Module J) ─────────────────────────────────────────────
 // Threshold is C-01: ADA26 <70 meter / <63 sensor (default), UC23 <60, VB24
 // 65–70. The inpatient rescue ladder is UC23 and is internally calibrated to

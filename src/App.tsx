@@ -25,6 +25,7 @@ import { LaborTab } from "./ui/LaborTab";
 import { AdjustTab } from "./ui/AdjustTab";
 import { HypoTab } from "./ui/HypoTab";
 import { SteroidsTab } from "./ui/SteroidsTab";
+import { DkaTab } from "./ui/DkaTab";
 import { CgmTab } from "./ui/CgmTab";
 import { PumpTab } from "./ui/PumpTab";
 import { PostpartumTab } from "./ui/PostpartumTab";
@@ -36,6 +37,7 @@ const TABS = [
   { id: "adjust", label: "Adjust", Comp: AdjustTab },
   { id: "hypo", label: "Hypo", Comp: HypoTab },
   { id: "steroids", label: "Steroids", Comp: SteroidsTab },
+  { id: "dka", label: "DKA", Comp: DkaTab },
   { id: "cgm", label: "CGM", Comp: CgmTab },
   { id: "pump", label: "Pump", Comp: PumpTab },
   { id: "postpartum", label: "Postpartum", Comp: PostpartumTab },

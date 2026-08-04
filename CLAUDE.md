@@ -42,6 +42,7 @@ src/
 │   ├── AdjustTab.tsx    # Pattern-based SMBG titration (+ 20% TDD cap)
 │   ├── HypoTab.tsx      # Hypoglycemia threshold (C-01), Rule of 15, rescue ladder
 │   ├── SteroidsTab.tsx  # Steroid episode + baseline-titration suspension (§9)
+│   ├── DkaTab.tsx       # DKA recognition + ICU check; reference protocol (§10, HS-14)
 │   ├── CgmTab.tsx       # CGM scorecard + tagged-value handoff (HS-09/10/11 guards)
 │   ├── PumpTab.tsx      # CSII initiation (C-14 resolved)
 │   └── PostpartumTab.tsx # Immediate PP dose options, all methods shown (C-13)
@@ -149,4 +150,4 @@ For grounding new clinical facts (via MCP), prefer **PubMed**, **ClinicalTrials.
 
 ## 8. Build order & what's next
 
-Per the spec's suggested order (§17), implemented so far: data/target service, the TDD/initiation calculator with the C-02 switch, pattern titration, the fixed/calculated correction, CSII (C-14), the intrapartum table (C-15 gap surfaced), the CGM adapter (§6: scorecard, HS-09/10/11 guards, tagged-value derivation feeding the titration engine, basal-hyperglycemia signal, phenotype triggers), Postpartum (§13: all dose methods shown side by side per C-13, target tiers, lactation guidance), Hypoglycemia (§12: C-01 threshold check, outpatient Rule of 15, the UC23 inpatient rescue ladder routed by consciousness/PO/BG, glucagon, symptoms, unawareness), and Steroids (§9: time-bounded episode that suspends baseline titration, monitoring cadence, BG-threshold escalation). **Not yet built:** DKA reference (§10) and AID (§8). See spec §18 for clinical gaps the four sources do not cover.
+Per the spec's suggested order (§17), implemented so far: data/target service, the TDD/initiation calculator with the C-02 switch, pattern titration, the fixed/calculated correction, CSII (C-14), the intrapartum table (C-15 gap surfaced), the CGM adapter (§6: scorecard, HS-09/10/11 guards, tagged-value derivation feeding the titration engine, basal-hyperglycemia signal, phenotype triggers), Postpartum (§13: all dose methods shown side by side per C-13, target tiers, lactation guidance), Hypoglycemia (§12: C-01 threshold check, outpatient Rule of 15, the UC23 inpatient rescue ladder routed by consciousness/PO/BG, glucagon, symptoms, unawareness), Steroids (§9: time-bounded episode that suspends baseline titration, monitoring cadence, BG-threshold escalation), and DKA (§10: recognition incl. euglycemic DKA, ICU-criteria check, and the fluid/insulin/electrolyte protocol as reference only — never automated, per HS-14). **Not yet built:** AID (§8). See spec §18 for clinical gaps the four sources do not cover.
