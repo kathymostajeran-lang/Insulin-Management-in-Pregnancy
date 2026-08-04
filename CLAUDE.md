@@ -2,101 +2,114 @@
 
 Guidance for AI assistants (and humans) working in the **Insulin Management in Pregnancy** repository.
 
-> **Current state: greenfield.** As of this file's creation the repository contains no application code — only this document. The sections below describe the project's intent, the conventions to follow, and how to keep this file accurate. **When you add real code, update the relevant sections here in the same change** so this document never drifts from reality. Delete the "not yet present" notes as each piece lands.
+> **Status:** The architecture below is the agreed design for the app. Source files are being scaffolded — when you add or change a file, keep the sections here in sync in the same commit so this document never drifts from the code. Where a path is described but not yet committed, treat this file as the spec for how it should be built.
 
 ---
 
 ## 1. What this project is
 
-**Insulin Management in Pregnancy** is a healthcare-domain project concerned with insulin dosing and glucose management for pregnant patients (gestational diabetes and pre-existing type 1 / type 2 diabetes during pregnancy).
+A **React + TypeScript single-page app** that helps compute and present **insulin dosing for pregnancy** (gestational and pre-existing diabetes). The app takes patient inputs, derives a **Total Daily Dose (TDD)**, and presents guidance across tabbed views.
 
-The precise deliverable — a clinician/patient web app, a mobile tracker, a clinical-data analysis pipeline, or a research codebase — is **not yet decided**. Until the direction is fixed, keep contributions small, well-documented, and easy to reshape.
-
-Because this project touches clinical decision-making, treat it as **safety-sensitive** (see §6).
+Every clinical rule is **guideline-based and traceable to its source** — the codebase is built so that any number a clinician sees can be traced back to a citation in code. This is a **safety-sensitive** project; see §6.
 
 ---
 
 ## 2. Repository layout
 
 ```
-/
-├── CLAUDE.md        # This file — guidance for AI assistants and contributors
-└── (application code to be added)
+src/
+├── logic/
+│   └── dosing.ts     # All clinical rules as PURE functions, each citing its source page
+├── config.ts         # Tunable constants: starting unit, titration step, demo prefill
+├── App.tsx           # App shell: patient inputs, TDD banner, tab routing
+├── ui/               # One component per tab + shared controls
+└── styles/
+    ├── modernist.css # Design-system tokens — copied VERBATIM, do not edit token values
+    └── app.css       # Application styles built on top of the tokens
+public/
+└── fonts/            # Archivo font, vendored locally (no external font CDN)
 ```
 
-There is no source tree, build system, package manifest, or test suite yet. As the project takes shape, document the real layout here — top-level directories, where domain logic lives, where tests live, and any generated/vendored paths that should not be edited by hand.
+**The load-bearing rule:** clinical truth lives in **`src/logic/dosing.ts`** and nowhere else. UI, config, and styles are presentation and tuning around that core.
 
 ---
 
-## 3. Development environment & commands
+## 3. Key conventions
 
-No toolchain is committed yet, so there are no build/test/lint commands to run. **Before writing any code, add the standard trio and record the exact commands here:**
+These are the conventions that make the codebase safe and consistent. Follow them exactly.
 
-| Purpose | Command | Status |
-|---------|---------|--------|
-| Install dependencies | _TBD_ | not yet present |
-| Run / start | _TBD_ | not yet present |
-| Test | _TBD_ | not yet present |
-| Lint / format | _TBD_ | not yet present |
+### Clinical logic — `src/logic/dosing.ts`
+- Every rule is a **pure function**: no I/O, no side effects, deterministic output for a given input. This keeps clinical logic unit-testable and reviewable in isolation.
+- **Each rule cites its source page** in a comment (guideline + page/section). No dosing constant, threshold, or formula lands without a citation. If you can't cite it, don't hard-code it.
+- Keep UI concerns out of this file — it returns numbers/structured results, not formatted strings or JSX.
 
-When you introduce a stack, prefer the ecosystem's conventional tooling (e.g. `npm`/`pnpm` + a test runner for JS/TS; `pip`/`uv` + `pytest` + `ruff` for Python) and pin versions in a manifest so the environment is reproducible.
+### Configuration — `src/config.ts`
+- Holds the **tunable knobs**: starting insulin unit, titration step size, and the **demo prefill** values used to populate inputs for demonstration.
+- Change behavior by editing config, not by scattering magic numbers through the UI.
+
+### App shell — `src/App.tsx`
+- Owns **patient inputs**, the **TDD banner**, and **tab routing**. It wires inputs → `dosing.ts` → the active tab; it does not contain clinical rules itself.
+
+### UI — `src/ui/`
+- **One component per tab**, plus **shared controls**. Components render results from `dosing.ts`; they must not re-implement clinical math.
+
+### Styles — `src/styles/`
+- `modernist.css` contains **design tokens copied verbatim** — do **not** alter token values; treat them as vendored design output.
+- Put app-specific styling in `app.css`, layered on top of the tokens.
+
+### Fonts — `public/fonts/`
+- **Archivo is vendored locally.** Do not add external font CDNs or `@import` from the network — reference the local files so the app stays self-contained.
 
 ---
 
-## 4. Git & contribution workflow
+## 4. Development environment & commands
 
-- **Default branch:** the repository's main branch (create it with the first real commit if it does not exist).
-- **Feature branches:** use short, descriptive names, e.g. `claude/<topic>-<id>` for assistant-generated work, or `feature/<topic>` for general work.
-- **Commits:** write clear, imperative-mood messages that explain *why*, not just *what*. Keep commits focused.
+Standard React + TypeScript tooling. Once `package.json` is committed, record the exact scripts here and remove this note:
+
+| Purpose | Command |
+|---------|---------|
+| Install dependencies | `npm install` _(confirm once manifest lands)_ |
+| Run dev server | `npm run dev` _(TBD — record actual script)_ |
+| Build | `npm run build` _(TBD)_ |
+| Test | _TBD — add a runner (e.g. Vitest) and test `dosing.ts` first_ |
+| Lint / format | _TBD — record actual commands_ |
+
+**Test `dosing.ts` before anything else.** Because the clinical rules are pure functions, they are the highest-value and easiest thing to unit-test; prioritize coverage there.
+
+---
+
+## 5. Git & contribution workflow
+
+- **Feature branches:** short, descriptive names, e.g. `claude/<topic>-<id>`.
+- **Commits:** imperative mood, explain *why*; keep them focused.
 - **Push:** `git push -u origin <branch-name>`.
-- **Pull requests:** open one only when explicitly requested. If a PR template exists under `.github/`, mirror its structure.
-- **Never commit secrets** — API keys, patient data, credentials, or `.env` files. Add a `.gitignore` before adding code and keep secrets out of history.
-
----
-
-## 5. Conventions for AI assistants
-
-- **Keep this file current.** Any change to structure, tooling, or workflow must be reflected here in the same commit. This is the first file to read and the first to update.
-- **Match the surrounding code.** Once code exists, mirror its style, naming, and idioms rather than importing outside conventions.
-- **Don't fabricate.** Do not invent files, commands, or structure that don't exist. If something is undecided, say so and leave a clearly marked TODO.
-- **Small, reversible steps.** Because the direction is not locked, favor changes that are easy to revisit.
-- **Verify before claiming done.** If tests or a runnable target exist, run them and report real output; if a step was skipped, say so.
+- **Pull requests:** open one only when explicitly requested; mirror any `.github/` template.
+- **Never commit secrets or patient data**, and keep a `.gitignore` covering `node_modules/`, build output, and `.env` files.
 
 ---
 
 ## 6. Clinical safety & data handling (important)
 
-This project deals with insulin — a high-alert medication where dosing errors can cause serious harm. Hold contributions to a correspondingly high bar:
+Insulin is a high-alert medication where dosing errors cause serious harm. Hold contributions to a correspondingly high bar:
 
-- **No unqualified medical advice or hard-coded dosing logic without a cited, authoritative clinical source.** Insulin regimens in pregnancy follow guideline-based, individualized protocols; any dosing calculation, threshold, or recommendation must reference its source (e.g. ADA/ACOG/NICE guidance) and be clearly reviewable by a clinician.
-- **Treat all patient-related data as protected health information (PHI).** Never commit real patient data, identifiers, or datasets to the repository. Use synthetic or de-identified data for examples and tests.
-- **Make clinical assumptions explicit.** Units (mg/dL vs mmol/L), gestational-age context, and target ranges must be unambiguous in code and docs.
-- **Fail safe.** Prefer conservative defaults, input validation, and clear error states over silent computation when handling glucose/insulin values.
-
-These rules apply regardless of the eventual stack.
+- **No dosing logic without a cited source.** This is enforced by convention in `dosing.ts` — every rule references its guideline page. Preserve that discipline in every change.
+- **Make units and context explicit.** mg/dL vs mmol/L, gestational context, and target ranges must be unambiguous in both code and UI.
+- **Treat all patient-related data as PHI.** Never commit real patient data or identifiers. The only patient-shaped data in the repo is the synthetic **demo prefill** in `config.ts`.
+- **Fail safe.** Validate inputs; prefer clear error states over silent computation on missing or out-of-range glucose/insulin values.
 
 ---
 
 ## 7. Domain references available in this environment
 
-When working on clinical accuracy, several reference tools are available (via MCP) and may help ground decisions in authoritative data — use them rather than relying on memory for clinical facts:
+For grounding clinical accuracy (via MCP) — use these rather than memory for clinical facts, and cite what informs `dosing.ts`:
 
-- **PubMed** — biomedical literature search and article retrieval.
-- **ClinicalTrials.gov** — trial protocols, endpoints, and eligibility criteria.
-- **ICD-10 (CM/PCS)** — diagnosis and procedure code lookup and validation (e.g. O24.\* codes for diabetes in pregnancy).
-- **Consensus / Scholar Gateway** — research-question search across scientific literature.
-
-Cite sources when they inform clinical logic in the codebase.
+- **PubMed** — biomedical literature.
+- **ClinicalTrials.gov** — trial protocols and endpoints.
+- **ICD-10 (CM/PCS)** — diagnosis/procedure codes (e.g. `O24.*`, diabetes in pregnancy).
+- **Consensus / Scholar Gateway** — research-question search across the literature.
 
 ---
 
 ## 8. Keeping this document useful
 
-This file is only valuable if it stays true. On every substantive change:
-
-1. Update §2 (layout) if directories were added or moved.
-2. Update §3 (commands) if tooling changed.
-3. Update §4/§5 if workflow or conventions changed.
-4. Remove "not yet present" / "TBD" markers as each item becomes real.
-
-If you find this document contradicting the code, the **code is the source of truth** — fix this file to match, and note the correction.
+The **code is the source of truth.** On every substantive change, update the section here that it affects — layout (§2), conventions (§3), or commands (§4) — and remove any "TBD"/"not yet committed" marker as each item becomes real. If this file contradicts the code, fix this file.
