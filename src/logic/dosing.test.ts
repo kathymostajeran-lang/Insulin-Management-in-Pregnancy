@@ -45,6 +45,8 @@ import {
   mathiesenSteroidAdjustment,
   dkaDiagnosis,
   dkaIcuCriteria,
+  yaleInsulinInfusion,
+  yaleDelta,
 } from "./dosing";
 
 describe("pyRound (half-to-even, matches the reference engine)", () => {
@@ -371,6 +373,64 @@ describe("DKA module (§10)", () => {
     expect(dkaIcuCriteria({ alteredSensorium: false, ph: 7.05, abnormalEkg: false, kussmaul: false }).indicated).toBe(true);
     expect(dkaIcuCriteria({ alteredSensorium: true, ph: 7.2, abnormalEkg: false, kussmaul: false }).reasons).toContain("Altered sensorium");
     expect(dkaIcuCriteria({ alteredSensorium: false, ph: 7.2, abnormalEkg: false, kussmaul: false }).indicated).toBe(false);
+  });
+});
+
+describe("Yale insulin infusion protocol", () => {
+  it("rate-dependent delta table", () => {
+    expect(yaleDelta(2)).toBe(0.5);
+    expect(yaleDelta(4)).toBe(1);
+    expect(yaleDelta(8)).toBe(1.5);
+    expect(yaleDelta(12)).toBe(2);
+    expect(yaleDelta(17)).toBe(3);
+    expect(yaleDelta(22)).toBe(4);
+    expect(yaleDelta(25)).toBe(5);
+  });
+
+  it("initiation: BG<180 → 0.5 u/hr; 180–299 → BG/100; ≥300 → bolus + infusion", () => {
+    const a = yaleInsulinInfusion({ currentBs: 150, previousBs: 0, hoursSincePrevious: 1, currentRate: 0 });
+    expect(a.kind).toBe("INITIATE");
+    expect(a.newRate).toBe(0.5);
+    expect(a.bolusUnits).toBe(0);
+    expect(yaleInsulinInfusion({ currentBs: 200, previousBs: 0, hoursSincePrevious: 1, currentRate: 0 }).newRate).toBe(2.0);
+    const c = yaleInsulinInfusion({ currentBs: 350, previousBs: 0, hoursSincePrevious: 1, currentRate: 0 });
+    expect(c.newRate).toBe(4);
+    expect(c.bolusUnits).toBe(4);
+  });
+
+  it("maintenance: rising in 180–249 increases by 1×delta", () => {
+    const r = yaleInsulinInfusion({ currentBs: 200, previousBs: 170, hoursSincePrevious: 1, currentRate: 4 });
+    expect(r.kind).toBe("SET_RATE");
+    expect(r.bsChangePerHr).toBe(30);
+    expect(r.finalDelta).toBe(1);
+    expect(r.newRate).toBe(5);
+  });
+
+  it("maintenance: in-band stable → no change", () => {
+    const r = yaleInsulinInfusion({ currentBs: 160, previousBs: 155, hoursSincePrevious: 1, currentRate: 2 });
+    expect(r.finalDelta).toBe(0);
+    expect(r.newRate).toBe(2);
+  });
+
+  it("large drop → hold 30 min then reduce by 2×delta", () => {
+    const r = yaleInsulinInfusion({ currentBs: 120, previousBs: 150, hoursSincePrevious: 1, currentRate: 6 });
+    expect(r.kind).toBe("HOLD_THEN_SET");
+    expect(r.holdMinutes).toBe(30);
+    expect(r.newRate).toBe(4); // 6 + (-2 × 1)
+  });
+
+  it("high rate + big increase flags Consult MD (finalDelta 10)", () => {
+    const r = yaleInsulinInfusion({ currentBs: 260, previousBs: 250, hoursSincePrevious: 1, currentRate: 25 });
+    expect(r.finalDelta).toBe(10);
+    expect(r.newRate).toBe(35);
+    expect(r.warning).toBe("Consult MD");
+  });
+
+  it("hypoglycemia rescue rungs (<50 / 50–69 / 70–99)", () => {
+    expect(yaleInsulinInfusion({ currentBs: 45, previousBs: 120, hoursSincePrevious: 1, currentRate: 4 }).kind).toBe("RESCUE");
+    expect(yaleInsulinInfusion({ currentBs: 60, previousBs: 120, hoursSincePrevious: 1, currentRate: 4 }).restartRate).toBe(3); // 75% of 4
+    expect(yaleInsulinInfusion({ currentBs: 45, previousBs: 120, hoursSincePrevious: 1, currentRate: 4 }).restartRate).toBe(2); // 50% of 4
+    expect(yaleInsulinInfusion({ currentBs: 85, previousBs: 120, hoursSincePrevious: 1, currentRate: 4 }).warning).toBe("Hypoglycemia");
   });
 });
 

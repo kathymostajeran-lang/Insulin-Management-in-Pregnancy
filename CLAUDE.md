@@ -42,7 +42,7 @@ src/
 │   ├── AdjustTab.tsx    # Pattern-based SMBG titration (+ 20% TDD cap)
 │   ├── HypoTab.tsx      # Hypoglycemia threshold (C-01), Rule of 15, rescue ladder
 │   ├── SteroidsTab.tsx  # Betamethasone insulin adjustment (Mathiesen) + monitoring (§9)
-│   ├── DkaTab.tsx       # DKA recognition + ICU check; reference protocol (§10, HS-14)
+│   ├── DkaTab.tsx       # DKA recognition + ICU check + Yale IV insulin drip (§10, HS-14)
 │   ├── CgmTab.tsx       # CGM scorecard + tagged-value handoff (HS-09/10/11 guards)
 │   ├── PumpTab.tsx      # CSII initiation (C-14 resolved)
 │   └── PostpartumTab.tsx # Immediate PP dose options, all methods shown (C-13)
@@ -144,7 +144,11 @@ The engine is compiled from four sources only; each numeric parameter carries a 
 
 Source precedence (spec §1): targets/monitoring **ADA26 > ES25 > VB24 > UC23**; MDI initiation/titration **VB24 > UC23**; CSII **UC23** (sole); AID **ES25 + ADA26**. Full citations live in `docs/insulin_parameters.json → sources`.
 
-**One source beyond the original four:** the Steroids module's insulin adjustment uses the **Mathiesen ER algorithm** (as implemented at perinatology.com), a pregnancy-specific betamethasone dosing algorithm added at the user's request. It carries its own citation (`MATHIESEN.source` in `dosing.ts`). Any further out-of-spec source must likewise be pregnancy-appropriate and explicitly cited.
+**Sources beyond the original four (both user-requested, both cited):**
+1. **Mathiesen ER algorithm** (perinatology.com) — the Steroids module's betamethasone insulin adjustment. Pregnancy-specific. Cited via `MATHIESEN.source` in `dosing.ts`.
+2. **Yale insulin infusion protocol** — the DKA IV insulin drip. Ported from *Insulin IP Calc v2.4*, © John George K., **LGPL v3** (the user's `Yale_infusion_calculator` repo). This is a **general critical-care** protocol (target 140–180 mg/dL), **not pregnancy-specific** — the DKA tab flags this in the UI. The port carries attribution in the `dosing.ts` Yale header comment; being LGPL, keep that attribution and the upstream LICENSE.
+
+Any further out-of-spec source must be explicitly cited and, if not pregnancy-specific, flagged as such in the UI.
 
 For grounding new clinical facts (via MCP), prefer **PubMed**, **ClinicalTrials.gov**, **ICD-10 (CM/PCS)**, and **Consensus / Scholar Gateway** over memory, and cite what informs `dosing.ts`.
 
@@ -152,4 +156,4 @@ For grounding new clinical facts (via MCP), prefer **PubMed**, **ClinicalTrials.
 
 ## 8. Build order & what's next
 
-Per the spec's suggested order (§17), implemented so far: data/target service, the TDD/initiation calculator with the C-02 switch, pattern titration, the fixed/calculated correction, CSII (C-14), the intrapartum table (C-15 gap surfaced), the CGM adapter (§6: scorecard, HS-09/10/11 guards, tagged-value derivation feeding the titration engine, basal-hyperglycemia signal, phenotype triggers), Postpartum (§13: all dose methods shown side by side per C-13, target tiers, lactation guidance), Hypoglycemia (§12: C-01 threshold check, outpatient Rule of 15, the UC23 inpatient rescue ladder routed by consciousness/PO/BG, glucagon, symptoms, unawareness), Steroids (§9: **Mathiesen ER** betamethasone day-by-day insulin adjustment, monitoring cadence, BG-threshold escalation, taper-back safety), and DKA (§10: recognition incl. euglycemic DKA, ICU-criteria check, and the fluid/insulin/electrolyte protocol as reference only — never automated, per HS-14). **Not yet built:** AID (§8). See spec §18 for clinical gaps the four sources do not cover.
+Per the spec's suggested order (§17), implemented so far: data/target service, the TDD/initiation calculator with the C-02 switch, pattern titration, the fixed/calculated correction, CSII (C-14), the intrapartum table (C-15 gap surfaced), the CGM adapter (§6: scorecard, HS-09/10/11 guards, tagged-value derivation feeding the titration engine, basal-hyperglycemia signal, phenotype triggers), Postpartum (§13: all dose methods shown side by side per C-13, target tiers, lactation guidance), Hypoglycemia (§12: C-01 threshold check, outpatient Rule of 15, the UC23 inpatient rescue ladder routed by consciousness/PO/BG, glucagon, symptoms, unawareness), Steroids (§9: **Mathiesen ER** betamethasone day-by-day insulin adjustment, monitoring cadence, BG-threshold escalation, taper-back safety), and DKA (§10: recognition incl. euglycemic DKA, ICU-criteria check, the fluid/electrolyte protocol as reference, and the **Yale IV insulin infusion** drip calculator — user-requested; UC23 orders otherwise not automated, per HS-14). **Not yet built:** AID (§8). See spec §18 for clinical gaps the four sources do not cover.
