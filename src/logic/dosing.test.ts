@@ -36,6 +36,10 @@ import {
   basalHyperglycemiaSignal,
   classifyWindow,
   type CgmWindow,
+  isHypoglycemia,
+  hypoThreshold,
+  classifyHypoglycemia,
+  inpatientRescue,
 } from "./dosing";
 
 describe("pyRound (half-to-even, matches the reference engine)", () => {
@@ -258,6 +262,34 @@ describe("CGM module (§6 / §A)", () => {
     expect(classifyWindow(60, 70, 95)).toBe("low");
     expect(classifyWindow(85, 70, 95)).toBe("in_range");
     expect(classifyWindow(60, null, 95)).toBe("in_range"); // no lower bound (GDM A1)
+  });
+});
+
+describe("Hypoglycemia module (§12)", () => {
+  it("threshold is ADA26 <70 meter / <63 sensor by default (C-01)", () => {
+    expect(hypoThreshold("meter")).toBe(70);
+    expect(hypoThreshold("sensor")).toBe(63);
+    expect(isHypoglycemia(65, "meter")).toBe(true);
+    expect(isHypoglycemia(72, "meter")).toBe(false);
+    expect(isHypoglycemia(62, "sensor")).toBe(true);
+    expect(isHypoglycemia(64, "sensor")).toBe(false);
+  });
+
+  it("flags level-2 (severe) hypoglycemia below 54", () => {
+    expect(classifyHypoglycemia(50, "meter").severe).toBe(true);
+    expect(classifyHypoglycemia(58, "meter").severe).toBe(false);
+  });
+
+  it("inpatient rescue routes by consciousness, PO ability, and BG (UC23 <60)", () => {
+    expect(inpatientRescue(45, false, true).rung).toContain("Unconscious"); // unconscious overrides
+    expect(inpatientRescue(80, true, true).rung).toContain("do not treat"); // ≥60
+    expect(inpatientRescue(55, true, false).action).toContain("GLUCAGON 1 mg IM"); // cannot take PO
+    const severe = inpatientRescue(35, true, true);
+    expect(severe.rung).toContain("< 40");
+    expect(severe.action).toContain("8 oz");
+    const mild = inpatientRescue(50, true, true);
+    expect(mild.action).toContain("4 oz");
+    expect(mild.cautions[0]).toContain("complex CHO");
   });
 });
 

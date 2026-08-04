@@ -637,6 +637,134 @@ export const CGM_PHENOTYPES: ReadonlyArray<{ label: string; meanMgdl: number; fl
   { label: "Peak overnight hyperglycemia", meanMgdl: 166, flags: ["LGA OR 3.72", "Neo hypo OR 3.53", "Preeclampsia OR 2.54", "NICU OR 3.15"] },
 ];
 
+// ── §12 Hypoglycemia (Module J) ─────────────────────────────────────────────
+// Threshold is C-01: ADA26 <70 meter / <63 sensor (default), UC23 <60, VB24
+// 65–70. The inpatient rescue ladder is UC23 and is internally calibrated to
+// <60, so it uses that number regardless of the display threshold.
+export type GlucoseSource = "meter" | "sensor";
+
+export function hypoThreshold(source: GlucoseSource, cfg: Config = DEFAULT_CONFIG): number {
+  return source === "sensor" ? cfg.hypoThresholdSensor : cfg.hypoThresholdMeter;
+}
+
+export function isHypoglycemia(value: number, source: GlucoseSource, cfg: Config = DEFAULT_CONFIG): boolean {
+  return value < hypoThreshold(source, cfg);
+}
+
+export interface HypoView {
+  value: number;
+  source: GlucoseSource;
+  threshold: number;
+  isLow: boolean;
+  /** ADA level 2 (clinically significant) hypoglycemia. */
+  severe: boolean;
+}
+
+export function classifyHypoglycemia(value: number, source: GlucoseSource, cfg: Config = DEFAULT_CONFIG): HypoView {
+  const threshold = hypoThreshold(source, cfg);
+  return { value, source, threshold, isLow: value < threshold, severe: value < 54 };
+}
+
+/** Outpatient treatment knobs — VB24 "no more than 15 g" + UC23 Rule of 15. */
+export const OUTPATIENT_HYPO = {
+  choGramsMax: 15, // VB24: no more than 15 g to avoid rebound hyperglycemia
+  recheckMinutes: [10, 15] as [number, number],
+  ruleOf15: { choG: 15, recheckMin: 15, expectedRiseMgdl: 15 }, // UC23
+  preExerciseChoIfBgBelow: 100, // UC23
+  source: "VB24 · UC23",
+} as const;
+
+export interface RescueStep {
+  rung: string;
+  action: string;
+  recheck: string;
+  cautions: string[];
+}
+
+/** UC23 inpatient rescue ladder for display (calibrated to <60 mg/dL). */
+export const INPATIENT_LADDER: ReadonlyArray<{ condition: string; action: string }> = [
+  { condition: "BG > 60", action: "Do not treat; ensure 3 meals + 3 snacks on time, 2–3 h apart" },
+  { condition: "Alert, can take PO · BG < 60", action: "4 oz apple juice OR 4 glucose tablets (4 g) + 8 oz water" },
+  { condition: "Alert, can take PO · BG < 40 + symptoms", action: "8 oz apple juice; do not leave the patient alone" },
+  { condition: "Alert, cannot take PO · BG < 60", action: "Glucagon 1 mg IM stat" },
+  { condition: "Unconscious / unresponsive", action: "Glucagon 1 mg SC or IM stat; venous access; escalate to IV dextrose" },
+];
+
+/**
+ * Route to the correct UC23 inpatient rescue rung from bedside state. The ladder
+ * is calibrated to the UC23 <60 threshold, so 60 and above is "do not treat".
+ */
+export function inpatientRescue(bg: number, conscious: boolean, canTakePO: boolean): RescueStep {
+  if (!conscious) {
+    return {
+      rung: "Unconscious / unresponsive",
+      action:
+        "GLUCAGON 1 mg SC or IM stat; ensure venous access. If BG not > 60 after 15 min, start D5NS or D10NS @ 200 mL/hr until BG > 60 ×2 (D5NS @ 125 mL/hr if BG stays < 20). Notify the attending.",
+      recheck: "q5 min until alert and responsive",
+      cautions: ["A team member must remain with the patient until fully conscious and normoglycemic"],
+    };
+  }
+  if (bg >= 60) {
+    return {
+      rung: "BG ≥ 60 — do not treat",
+      action: "Do not treat. Ensure 3 meals + 3 snacks on time, 2–3 h apart.",
+      recheck: "—",
+      cautions: [],
+    };
+  }
+  if (!canTakePO) {
+    return {
+      rung: "Alert, cannot take PO · BG < 60",
+      action: "GLUCAGON 1 mg IM stat.",
+      recheck: "q15 min until BG > 60 ×2",
+      cautions: [],
+    };
+  }
+  if (bg < 40) {
+    return {
+      rung: "Alert, can take PO · BG < 40 + symptoms",
+      action: "8 oz (1 cup) apple juice. Do not leave the patient alone.",
+      recheck: "q15 min until BG > 60 ×2",
+      cautions: [],
+    };
+  }
+  return {
+    rung: "Alert, can take PO · BG < 60",
+    action: "4 oz (½ cup) apple juice OR 4 glucose tablets (4 g each) with 8 oz water.",
+    recheck: "q15 min until BG > 60 ×2",
+    cautions: ["No complex CHO (milk, cookies, candy, peanut-butter crackers, sandwiches) — it delays glucose absorption"],
+  };
+}
+
+/** Glucagon rescue products and rules (UC23). */
+export const GLUCAGON = {
+  gvokeMgSc: 1,
+  baqsimiMgIntranasal: 3,
+  useEntireDose: true,
+  onsetMinutes: 15,
+  mayRepeatMinutes: 20,
+  positionOnSide: true, // vomiting is common
+  homeKitAllInsulinUsers: true,
+} as const;
+
+/** Patient-education symptom list (UC23). */
+export const HYPO_SYMPTOMS: ReadonlyArray<string> = [
+  "Hunger",
+  "Headache",
+  "Diaphoresis",
+  "Weakness / lethargy",
+  "Tremulousness",
+  "Blurred or tunnel vision",
+  "Disorientation",
+  "Confusion",
+  "Drowsiness",
+  "Nausea",
+  "Circumoral numbness",
+  "Stupor",
+  "Loss of consciousness",
+  "Seizure",
+];
+
 // ── §13 Postpartum ──────────────────────────────────────────────────────────
 export interface PostpartumOptions {
   UC23_pct_end_pregnancy?: [number, number];

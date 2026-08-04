@@ -23,6 +23,7 @@ import { StartTab } from "./ui/StartTab";
 import { CorrectTab } from "./ui/CorrectTab";
 import { LaborTab } from "./ui/LaborTab";
 import { AdjustTab } from "./ui/AdjustTab";
+import { HypoTab } from "./ui/HypoTab";
 import { CgmTab } from "./ui/CgmTab";
 import { PumpTab } from "./ui/PumpTab";
 import { PostpartumTab } from "./ui/PostpartumTab";
@@ -32,6 +33,7 @@ const TABS = [
   { id: "correct", label: "Correct", Comp: CorrectTab },
   { id: "labor", label: "Labor", Comp: LaborTab },
   { id: "adjust", label: "Adjust", Comp: AdjustTab },
+  { id: "hypo", label: "Hypo", Comp: HypoTab },
   { id: "cgm", label: "CGM", Comp: CgmTab },
   { id: "pump", label: "Pump", Comp: PumpTab },
   { id: "postpartum", label: "Postpartum", Comp: PostpartumTab },
