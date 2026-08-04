@@ -503,6 +503,140 @@ export function intrapartumRate(bg: number, policy8099: string | null = null): n
   return 0;
 }
 
+// ── §6 / §A CGM (Module D) ──────────────────────────────────────────────────
+// CRITICAL (spec §A.4): CGM aggregate metrics are a SCORECARD, not a titration
+// target. The titration engine's inputs are time-tagged glucose values, never
+// aggregate TIR. This module evaluates the scorecard, guards data quality
+// (HS-10/HS-11), blocks eA1C/GMI (HS-09), derives the basal-hyperglycemia
+// signal (D.2), and classifies tagged values that then route to titratePattern.
+
+/** ADA26 CGM goals (§A.3). Validated for T1DM; sensor ranges endorsed for
+ *  T2DM/GDM but the time-in-range goal amount is undefined (insufficient data). */
+export const CGM_TARGETS = {
+  sensorRange: [63, 140] as [number, number],
+  tirPctMin: 70,
+  tarGt140PctMax: 25,
+  tbrLt63PctMax: 4,
+  tbrLt54PctMax: 1,
+  validatedFor: ["T1DM"] as const,
+  minDaysForTitration: 10,
+  minWearPctForTitration: 70,
+} as const;
+
+export interface CgmWindow {
+  days: number;
+  wearPct: number;
+  tir63_140Pct: number;
+  tarGt140Pct: number;
+  tbrLt63Pct: number;
+  tbrLt54Pct: number;
+  meanGlucoseMgdl: number;
+  overnightMeanMgdl?: number | null;
+  /** Day index of the current sensor wear; 1 = first day (suppressed). */
+  dayOfWear?: number | null;
+}
+
+export interface CgmMetric {
+  key: string;
+  label: string;
+  value: number;
+  goal: string;
+  /** true = meets goal, false = misses, null = informational (no pass/fail). */
+  meets: boolean | null;
+}
+
+/** Evaluate the CGM scorecard against ADA26 goals. Mean glucose is shown
+ *  instead of eA1C/GMI, which is prohibited in pregnancy (HS-09). */
+export function evaluateCgm(w: CgmWindow): CgmMetric[] {
+  return [
+    { key: "tir", label: "Time in range 63–140", value: w.tir63_140Pct, goal: "≥ 70%", meets: w.tir63_140Pct >= CGM_TARGETS.tirPctMin },
+    { key: "tar", label: "Time above 140", value: w.tarGt140Pct, goal: "≤ 25%", meets: w.tarGt140Pct <= CGM_TARGETS.tarGt140PctMax },
+    { key: "tbr63", label: "Time below 63", value: w.tbrLt63Pct, goal: "≤ 4%", meets: w.tbrLt63Pct <= CGM_TARGETS.tbrLt63PctMax },
+    { key: "tbr54", label: "Time below 54", value: w.tbrLt54Pct, goal: "≤ 1%", meets: w.tbrLt54Pct <= CGM_TARGETS.tbrLt54PctMax },
+    { key: "mean", label: "Mean glucose", value: w.meanGlucoseMgdl, goal: "shown instead of eA1C", meets: null },
+  ];
+}
+
+export interface CgmTitrationGate {
+  allowed: boolean;
+  reasons: string[];
+}
+
+/**
+ * Data-quality gate for CGM-derived dose recommendations (HS-10, HS-11).
+ * A recommendation is BLOCKED unless ≥10 days of ≥70% wear are present and the
+ * data is not day 1 of sensor wear.
+ */
+export function cgmTitrationGate(w: CgmWindow): CgmTitrationGate {
+  const reasons: string[] = [];
+  if (w.days < CGM_TARGETS.minDaysForTitration) {
+    reasons.push(`Need ≥ ${CGM_TARGETS.minDaysForTitration} days of CGM data (have ${w.days}). [HS-10]`);
+  }
+  if (w.wearPct < CGM_TARGETS.minWearPctForTitration) {
+    reasons.push(`Need ≥ ${CGM_TARGETS.minWearPctForTitration}% sensor wear (have ${w.wearPct}%). [HS-10]`);
+  }
+  if (w.dayOfWear === 1) {
+    reasons.push("Day 1 of sensor wear is suppressed — %20/20 agreement is lowest on day 1. [HS-11]");
+  }
+  return { allowed: reasons.length === 0, reasons };
+}
+
+export class NotImplementedInPregnancy extends Error {}
+
+/** GMI / estimated A1C must not be computed or displayed in pregnancy
+ *  (ADA26 15.13, HS-09). Display CGM mean glucose instead. */
+export function estimatedA1c(): never {
+  throw new NotImplementedInPregnancy(
+    "GMI / estimated A1C must not be displayed in pregnancy (ADA26 15.13, HS-09). Display mean glucose instead.",
+  );
+}
+
+export interface BasalHyperglycemiaSignal {
+  flag: boolean;
+  overnightMean: number | null;
+  message: string;
+}
+
+/**
+ * D.2: basal/overnight hyperglycemia drives 66.5–74.9% of the hyperglycemic
+ * burden in T1DM pregnancy (Ling 2024). When the overnight mean is above the
+ * fasting target, weight the recommendation toward BASAL escalation even if
+ * TIR looks acceptable.
+ */
+export function basalHyperglycemiaSignal(
+  overnightMean: number | null | undefined,
+  fastingUpper = 95,
+): BasalHyperglycemiaSignal {
+  if (overnightMean === null || overnightMean === undefined) {
+    return { flag: false, overnightMean: null, message: "No overnight mean provided." };
+  }
+  if (overnightMean > fastingUpper) {
+    return {
+      flag: true,
+      overnightMean,
+      message: `Overnight mean ${overnightMean} > ${fastingUpper} mg/dL. Basal/overnight hyperglycemia is the dominant driver (Ling 2024) — favor basal escalation. Confirm with the fasting pattern on Adjust.`,
+    };
+  }
+  return { flag: false, overnightMean, message: `Overnight mean ${overnightMean} mg/dL at or below the fasting target.` };
+}
+
+/** Classify a single tagged glucose value against a [lo, hi] target window.
+ *  lo may be null (e.g. GDM A1 has no lower bound). Feeds titratePattern. */
+export function classifyWindow(value: number, lo: number | null, hi: number): WindowState {
+  if (value > hi) return "high";
+  if (lo !== null && value < lo) return "low";
+  return "in_range";
+}
+
+/** D.3 CGM phenotype clusters (Battarbee 2024) — REVIEW TRIGGERS, not dose
+ *  changes. Distinct outcome profiles at similar aggregate metrics. */
+export const CGM_PHENOTYPES: ReadonlyArray<{ label: string; meanMgdl: number; flags: string[] }> = [
+  { label: "Well controlled", meanMgdl: 123, flags: [] },
+  { label: "Suboptimal, high variability", meanMgdl: 154, flags: ["LGA OR 3.34"] },
+  { label: "Suboptimal, minimal circadian rhythm", meanMgdl: 148, flags: ["PTB OR 2.59", "CD OR 2.76", "NICU OR 4.08"] },
+  { label: "Peak overnight hyperglycemia", meanMgdl: 166, flags: ["LGA OR 3.72", "Neo hypo OR 3.53", "Preeclampsia OR 2.54", "NICU OR 3.15"] },
+];
+
 // ── §13 Postpartum ──────────────────────────────────────────────────────────
 export interface PostpartumOptions {
   UC23_pct_end_pregnancy?: [number, number];

@@ -23,6 +23,7 @@ import { StartTab } from "./ui/StartTab";
 import { CorrectTab } from "./ui/CorrectTab";
 import { LaborTab } from "./ui/LaborTab";
 import { AdjustTab } from "./ui/AdjustTab";
+import { CgmTab } from "./ui/CgmTab";
 import { PumpTab } from "./ui/PumpTab";
 
 const TABS = [
@@ -30,6 +31,7 @@ const TABS = [
   { id: "correct", label: "Correct", Comp: CorrectTab },
   { id: "labor", label: "Labor", Comp: LaborTab },
   { id: "adjust", label: "Adjust", Comp: AdjustTab },
+  { id: "cgm", label: "CGM", Comp: CgmTab },
   { id: "pump", label: "Pump", Comp: PumpTab },
 ] as const;
 

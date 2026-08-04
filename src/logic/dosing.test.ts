@@ -29,6 +29,13 @@ import {
   pyRound,
   computeTdd,
   DEFAULT_CONFIG,
+  evaluateCgm,
+  cgmTitrationGate,
+  estimatedA1c,
+  NotImplementedInPregnancy,
+  basalHyperglycemiaSignal,
+  classifyWindow,
+  type CgmWindow,
 } from "./dosing";
 
 describe("pyRound (half-to-even, matches the reference engine)", () => {
@@ -198,6 +205,59 @@ describe("Postpartum options (C-13) — none auto-selected", () => {
     expect(opts.VB24_pct_third_trimester).toEqual([36.0, 48.0]);
     expect(opts.UC23_weight_based).toBe(38.0);
     expect(opts.ADA26_reference_point).toBe(39.6);
+  });
+});
+
+describe("CGM module (§6 / §A)", () => {
+  const good: CgmWindow = {
+    days: 14,
+    wearPct: 92,
+    tir63_140Pct: 74,
+    tarGt140Pct: 22,
+    tbrLt63Pct: 3,
+    tbrLt54Pct: 0.5,
+    meanGlucoseMgdl: 118,
+    overnightMeanMgdl: 90,
+    dayOfWear: 10,
+  };
+
+  it("scorecard evaluates each metric against ADA26 goals", () => {
+    const m = evaluateCgm(good);
+    expect(m.find((x) => x.key === "tir")?.meets).toBe(true);
+    expect(m.find((x) => x.key === "tar")?.meets).toBe(true);
+    expect(m.find((x) => x.key === "tbr63")?.meets).toBe(true);
+    expect(m.find((x) => x.key === "mean")?.meets).toBeNull(); // informational
+  });
+
+  it("flags a failing scorecard", () => {
+    const m = evaluateCgm({ ...good, tir63_140Pct: 55, tbrLt63Pct: 6 });
+    expect(m.find((x) => x.key === "tir")?.meets).toBe(false);
+    expect(m.find((x) => x.key === "tbr63")?.meets).toBe(false);
+  });
+
+  it("titration gate allows only ≥10 days, ≥70% wear, not day 1 (HS-10/HS-11)", () => {
+    expect(cgmTitrationGate(good).allowed).toBe(true);
+    expect(cgmTitrationGate({ ...good, days: 6 }).allowed).toBe(false);
+    expect(cgmTitrationGate({ ...good, wearPct: 55 }).allowed).toBe(false);
+    expect(cgmTitrationGate({ ...good, dayOfWear: 1 }).allowed).toBe(false);
+    expect(cgmTitrationGate({ ...good, days: 6, wearPct: 55 }).reasons.length).toBe(2);
+  });
+
+  it("blocks eA1C / GMI display in pregnancy (HS-09)", () => {
+    expect(() => estimatedA1c()).toThrow(NotImplementedInPregnancy);
+  });
+
+  it("basal-hyperglycemia signal fires when overnight mean exceeds fasting target (D.2)", () => {
+    expect(basalHyperglycemiaSignal(110).flag).toBe(true);
+    expect(basalHyperglycemiaSignal(90).flag).toBe(false);
+    expect(basalHyperglycemiaSignal(null).flag).toBe(false);
+  });
+
+  it("classifyWindow tags values against a target window", () => {
+    expect(classifyWindow(120, 70, 95)).toBe("high");
+    expect(classifyWindow(60, 70, 95)).toBe("low");
+    expect(classifyWindow(85, 70, 95)).toBe("in_range");
+    expect(classifyWindow(60, null, 95)).toBe("in_range"); // no lower bound (GDM A1)
   });
 });
 

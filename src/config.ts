@@ -91,3 +91,43 @@ export const GLYCEMIC_TARGETS: GlycemicWindow[] = [
 ];
 
 export const HYPO_THRESHOLD_MGDL = APP_CONFIG.hypoThresholdMeter; // ADA26 <70 meter
+
+// ── CGM tab (§6) ────────────────────────────────────────────────────────────
+/** Tagged-value target windows for classifying CGM-derived readings (ADA26). */
+export const FASTING_TARGET: [number, number] = [70, 95];
+export const PP1H_TARGET: [number, number] = [110, 140];
+
+export interface CgmInputs {
+  days: number | null;
+  wearPct: number | null;
+  dayOfWear: number | null;
+  tir: number | null;
+  tar: number | null;
+  tbr63: number | null;
+  tbr54: number | null;
+  meanGlucose: number | null;
+  overnightMean: number | null;
+  // CGM-derived tagged values (feed the titration engine, not the scorecard).
+  fasting: number | null;
+  postBreakfast: number | null;
+  postLunch: number | null;
+  postDinner: number | null;
+}
+
+/** Synthetic demonstration CGM window — NOT a real patient. Slightly
+ *  out-of-target so the scorecard, basal flag, and tagged values are illustrative. */
+export const DEMO_CGM: CgmInputs = {
+  days: 14,
+  wearPct: 92,
+  dayOfWear: 10,
+  tir: 64,
+  tar: 33,
+  tbr63: 3,
+  tbr54: 0.5,
+  meanGlucose: 128,
+  overnightMean: 104,
+  fasting: 104,
+  postBreakfast: 150,
+  postLunch: 128,
+  postDinner: 146,
+};

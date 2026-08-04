@@ -40,6 +40,7 @@ src/
 │   ├── CorrectTab.tsx   # Calculated ICF correction + UC23 fixed scale (+ hard stop)
 │   ├── LaborTab.tsx     # UC23 intrapartum IV algorithm (+ C-15 policy gap)
 │   ├── AdjustTab.tsx    # Pattern-based SMBG titration (+ 20% TDD cap)
+│   ├── CgmTab.tsx       # CGM scorecard + tagged-value handoff (HS-09/10/11 guards)
 │   └── PumpTab.tsx      # CSII initiation (C-14 resolved)
 └── styles/
     ├── modernist.css    # Design-system tokens — copied VERBATIM; do not edit token values
@@ -145,4 +146,4 @@ For grounding new clinical facts (via MCP), prefer **PubMed**, **ClinicalTrials.
 
 ## 8. Build order & what's next
 
-Per the spec's suggested order (§17), implemented so far: data/target service, the TDD/initiation calculator with the C-02 switch, pattern titration, the fixed/calculated correction, CSII (C-14), and the intrapartum table (C-15 gap surfaced). **Not yet built:** CGM adapter (§6), a first-class Hypoglycemia module (§12), Postpartum (§13) UI, Steroids (§9), DKA reference (§10), and AID (§8). See spec §18 for clinical gaps the four sources do not cover.
+Per the spec's suggested order (§17), implemented so far: data/target service, the TDD/initiation calculator with the C-02 switch, pattern titration, the fixed/calculated correction, CSII (C-14), the intrapartum table (C-15 gap surfaced), and the CGM adapter (§6: scorecard, HS-09/10/11 guards, tagged-value derivation feeding the titration engine, basal-hyperglycemia signal, phenotype triggers). **Not yet built:** a first-class Hypoglycemia module (§12), Postpartum (§13) UI, Steroids (§9), DKA reference (§10), and AID (§8). See spec §18 for clinical gaps the four sources do not cover.
