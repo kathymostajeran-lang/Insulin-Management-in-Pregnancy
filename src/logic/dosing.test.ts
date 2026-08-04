@@ -42,6 +42,7 @@ import {
   inpatientRescue,
   steroidEpisode,
   steroidBgAction,
+  mathiesenSteroidAdjustment,
   dkaDiagnosis,
   dkaIcuCriteria,
 } from "./dosing";
@@ -326,6 +327,28 @@ describe("Steroid module (§9)", () => {
     expect(steroidBgAction(220, true).message).toContain("aggressively");
     expect(steroidBgAction(220, false).message).toContain("carbohydrate-counting");
     expect(steroidBgAction(180, false).escalate).toBe(false);
+  });
+
+  it("Mathiesen betamethasone adjustment applies the per-day factors to baseline", () => {
+    const base = { breakfast: 10, lunch: 8, dinner: 12, hs: 20 };
+    // Day 1: only nighttime (HS) +25%, meals unchanged
+    const d1 = mathiesenSteroidAdjustment(base, 1);
+    expect(d1.breakfast).toEqual([10, 10]);
+    expect(d1.hs).toEqual([25, 25]);
+    // Day 2: all +40%
+    const d2 = mathiesenSteroidAdjustment(base, 2);
+    expect(d2.breakfast).toEqual([14, 14]);
+    expect(d2.lunch).toEqual([11, 11]); // 8 × 1.4 = 11.2 → 11
+    expect(d2.dinner).toEqual([17, 17]); // 12 × 1.4 = 16.8 → 17
+    expect(d2.hs).toEqual([28, 28]);
+    // Day 4: all +20%
+    expect(mathiesenSteroidAdjustment(base, 4).hs).toEqual([24, 24]);
+    // Day 5: 10–20% range
+    expect(mathiesenSteroidAdjustment(base, 5).hs).toEqual([22, 24]);
+    // Day 6: taper back to baseline
+    const d6 = mathiesenSteroidAdjustment(base, 6);
+    expect(d6.taper).toBe(true);
+    expect(d6.hs).toEqual([20, 20]);
   });
 });
 

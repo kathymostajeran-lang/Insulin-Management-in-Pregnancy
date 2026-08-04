@@ -1,12 +1,21 @@
 /**
  * SteroidsTab — antenatal corticosteroid hyperglycemia (spec §9 / Module G).
- * Sole source: UC23. The headline behavior is the time-bounded episode that
- * SUSPENDS baseline titration so a transient steroid spike is not baked into
- * the standing regimen. Episode classification and the BG action live in
- * dosing.ts (steroidEpisode / steroidBgAction).
+ *
+ * The insulin adjustment uses the pregnancy-specific Mathiesen ER algorithm for
+ * betamethasone (perinatology.com): a day-by-day increase over the pre-steroid
+ * baseline (Day 1 nighttime +25%, Day 2–3 +40%, Day 4 +20%, Day 5 +10–20%,
+ * taper Days 6–7). Monitoring cadence, the >200 mg/dL escalation, and the
+ * transient-effect safety framing are UC23. All math lives in dosing.ts.
  */
 import { useState } from "react";
-import { steroidEpisode, steroidBgAction, STEROID } from "../logic/dosing";
+import {
+  mathiesenSchedule,
+  steroidBgAction,
+  STEROID,
+  MATHIESEN,
+  type SteroidRegimen,
+  type MathiesenDose,
+} from "../logic/dosing";
 import { Kicker, NumberField, Seg, Alert, Cite } from "./controls";
 
 const YN: ReadonlyArray<{ value: "yes" | "no"; label: string }> = [
@@ -14,74 +23,84 @@ const YN: ReadonlyArray<{ value: "yes" | "no"; label: string }> = [
   { value: "no", label: "No" },
 ];
 
-export function SteroidsTab() {
-  const [hours, setHours] = useState<number | null>(60);
-  const [npo, setNpo] = useState<"yes" | "no">("no");
-  const [bg, setBg] = useState<number | null>(210);
-  const [onInsulin, setOnInsulin] = useState<"yes" | "no">("no");
+const fmt = (r: [number, number]) => (r[0] === r[1] ? `${r[0]}` : `${r[0]}–${r[1]}`);
 
-  const ep = hours === null ? null : steroidEpisode(hours, npo === "yes");
+export function SteroidsTab() {
+  const [base, setBase] = useState<SteroidRegimen>({ breakfast: 10, lunch: 8, dinner: 12, hs: 20 });
+  const [bg, setBg] = useState<number | null>(210);
+  const [onInsulin, setOnInsulin] = useState<"yes" | "no">("yes");
+
+  const schedule = mathiesenSchedule(base);
+  const days1to5 = schedule.filter((d) => !d.taper);
   const bgAction = bg === null ? null : steroidBgAction(bg, onInsulin === "yes");
+
+  function patchBase(p: Partial<SteroidRegimen>) {
+    setBase((prev) => ({ ...prev, ...p }));
+  }
 
   return (
     <>
-      {/* ── Episode state ─────────────────────────────────────────── */}
+      {/* ── Mathiesen insulin adjustment ──────────────────────────── */}
       <section>
-        <Kicker>Steroid episode · hours since first dose</Kicker>
+        <Kicker>Insulin adjustment · Mathiesen algorithm · betamethasone</Kicker>
+        <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
+          Enter the pre-steroid regimen. Each day's increase is applied to that baseline. Assumes the
+          first steroid dose is given the morning of Day 1.
+        </p>
         <div className="rail" style={{ marginTop: 8 }}>
-          <NumberField
-            label="Hours since first dose"
-            value={hours}
-            onChange={setHours}
-            min={0}
-            hint={hours !== null ? `≈ day ${(hours / 24).toFixed(1)} post-dose` : undefined}
-          />
-          <div className="field">
-            <label>NPO?</label>
-            <Seg name="npo" value={npo} options={YN} onChange={setNpo} />
-          </div>
+          <NumberField label="Breakfast · units" value={base.breakfast} onChange={(v) => patchBase({ breakfast: v ?? 0 })} min={0} />
+          <NumberField label="Lunch · units" value={base.lunch} onChange={(v) => patchBase({ lunch: v ?? 0 })} min={0} />
+          <NumberField label="Dinner · units" value={base.dinner} onChange={(v) => patchBase({ dinner: v ?? 0 })} min={0} />
+          <NumberField label="HS · units" value={base.hs} onChange={(v) => patchBase({ hs: v ?? 0 })} min={0} />
         </div>
-        {ep ? (
-          <>
-            <div className="rail" style={{ marginTop: 12 }}>
-              <div className="field">
-                <label>Phase</label>
-                <div className="num" style={{ fontSize: 16 }}>{ep.phaseLabel}</div>
-              </div>
-              <div className="field">
-                <label>Monitoring</label>
-                <div className="num" style={{ fontSize: 16 }}>
-                  {ep.monitoringActive ? ep.monitoringCadence : "72-h window passed"}
-                </div>
-              </div>
-              <div className="field">
-                <label>Next de-escalation review</label>
-                <div className="num" style={{ fontSize: 16 }}>
-                  {ep.nextReviewDay ? `Day ${ep.nextReviewDay} post-dose` : "—"}
-                </div>
-              </div>
-            </div>
-            {ep.baselineTitrationSuspended ? (
-              <Alert title="Baseline titration suspended">
-                <p style={{ marginBottom: 0 }}>
-                  Treat this hyperglycemia as <strong>transient</strong>. Do not permanently escalate the
-                  standing regimen — the effect typically resolves in 1–2 weeks. Re-evaluate the baseline at
-                  day {ep.nextReviewDay}.<Cite> spec §9 mitigation · UC23</Cite>
-                </p>
-              </Alert>
-            ) : (
-              <p className="text-muted" style={{ fontSize: 13, marginTop: 8 }}>
-                Past the 2-week window — glucose is expected back at pretreatment levels. Resume normal
-                titration on the Adjust tab.
-              </p>
-            )}
-          </>
-        ) : null}
+
+        <div style={{ overflowX: "auto", marginTop: 12 }}>
+          <table className="dtab">
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>Adjustment</th>
+                <th style={{ textAlign: "right" }}>Breakfast</th>
+                <th style={{ textAlign: "right" }}>Lunch</th>
+                <th style={{ textAlign: "right" }}>Dinner</th>
+                <th style={{ textAlign: "right" }}>HS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {days1to5.map((d: MathiesenDose) => (
+                <tr key={d.day}>
+                  <td className="num">{d.day}</td>
+                  <td className="text-muted" style={{ fontSize: 12 }}>{d.instruction}</td>
+                  <td className="num" style={{ textAlign: "right" }}>{fmt(d.breakfast)}</td>
+                  <td className="num" style={{ textAlign: "right" }}>{fmt(d.lunch)}</td>
+                  <td className="num" style={{ textAlign: "right" }}>{fmt(d.dinner)}</td>
+                  <td className="num" style={{ textAlign: "right" }}>{fmt(d.hs)}</td>
+                </tr>
+              ))}
+              <tr>
+                <td className="num">6–7</td>
+                <td className="text-muted" style={{ fontSize: 12 }} colSpan={5}>
+                  Gradually reduce the insulin dose back to the pre-steroid dose.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="card-meta" style={{ marginTop: 6 }}>
+          <Cite>{MATHIESEN.source} · hyperglycemia may begin {MATHIESEN.onsetHours[0]}–{MATHIESEN.onsetHours[1]} h post-dose and persist up to {MATHIESEN.elevatedUpToDays} days</Cite>
+        </div>
       </section>
 
-      {/* ── BG action ─────────────────────────────────────────────── */}
+      <Alert title="Temporary adjustment — taper back">
+        <p style={{ marginBottom: 0 }}>
+          This is a <strong>transient</strong> 5–7 day escalation. Do not bake it into the standing
+          regimen — taper to the pre-steroid dose by Days 6–7 and reassess.<Cite> spec §9 mitigation</Cite>
+        </p>
+      </Alert>
+
+      {/* ── Glucose action (breakthrough) ─────────────────────────── */}
       <section>
-        <Kicker>Glucose action</Kicker>
+        <Kicker>Breakthrough glucose</Kicker>
         <div className="rail" style={{ marginTop: 8 }}>
           <NumberField label="Blood glucose · mg/dL" value={bg} onChange={setBg} min={0} />
           <div className="field">
@@ -100,49 +119,21 @@ export function SteroidsTab() {
         ) : null}
       </section>
 
-      {/* ── Physiology reference ──────────────────────────────────── */}
+      {/* ── Physiology + monitoring reference ─────────────────────── */}
       <section className="card elev-sm">
-        <div className="card-kicker">Physiology · UC23</div>
+        <div className="card-kicker">Physiology &amp; monitoring · UC23</div>
         <table className="dtab">
           <tbody>
-            <tr><td>Peak response</td><td>{STEROID.peakHours[0]}–{STEROID.peakHours[1]} h after the first dose</td></tr>
-            <tr><td>Onset</td><td>may be delayed several days</td></tr>
-            <tr><td>Duration</td><td>may persist {STEROID.persistWeeks[0]}–{STEROID.persistWeeks[1]} weeks</td></tr>
+            <tr><td>Peak response</td><td>{STEROID.peakHours[0]}–{STEROID.peakHours[1]} h (onset can be delayed; may persist {STEROID.persistWeeks[0]}–{STEROID.persistWeeks[1]} weeks)</td></tr>
             <tr><td>Typical max BG</td><td>&lt; {STEROID.typicalMaxBgNondiabetic} mg/dL in non-diabetic pregnancy</td></tr>
-          </tbody>
-        </table>
-      </section>
-
-      {/* ── Monitoring protocol ───────────────────────────────────── */}
-      <section className="card">
-        <div className="card-kicker">Monitoring · {STEROID.monitorHours} h screening window</div>
-        <table className="dtab">
-          <tbody>
             <tr><td>While NPO</td><td>check BG q8h</td></tr>
             <tr><td>On a regular diet</td><td>check BG AC and HS</td></tr>
             <tr><td>After 72 h · BG &lt; 200</td><td>discontinue BG monitoring</td></tr>
             <tr><td>During window · BG &gt; 200</td><td>carbohydrate-counting pregnancy diet; check BG 7×/day; treat as needed</td></tr>
           </tbody>
         </table>
-        <div className="card-meta"><Cite>UC23</Cite></div>
+        <div className="card-meta"><Cite>UC23 · other amplifiers: {STEROID.otherAmplifiers.join(", ")}</Cite></div>
       </section>
-
-      {/* ── Treatment ─────────────────────────────────────────────── */}
-      <section className="card">
-        <div className="card-kicker">Treatment</div>
-        <table className="dtab">
-          <tbody>
-            <tr><td>BG &gt; 200</td><td>PRN rapid-acting analog</td></tr>
-            <tr><td>Already on insulin</td><td>increase doses aggressively and proportionately to the hyperglycemia</td></tr>
-            <tr><td>Persists &gt; 3 days</td><td>consider initiating treatment (oral or insulin) — but the transient response usually resolves in 1–2 weeks and returns to pretreatment levels</td></tr>
-          </tbody>
-        </table>
-        <div className="card-meta"><Cite>UC23</Cite></div>
-      </section>
-
-      <p className="text-muted" style={{ fontSize: 12, margin: "0 var(--space-1)" }}>
-        Other insulin-requirement amplifiers to consider: {STEROID.otherAmplifiers.join(", ")}.
-      </p>
     </>
   );
 }

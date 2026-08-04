@@ -736,6 +736,72 @@ export function steroidBgAction(bg: number, onInsulin: boolean): SteroidBgAction
   };
 }
 
+// ── §9b Mathiesen betamethasone insulin adjustment (perinatal) ──────────────
+// Pregnancy-specific day-by-day insulin adjustment for antenatal betamethasone
+// (Mathiesen ER algorithm, as implemented at perinatology.com). Each day's
+// percentage increase is applied to the PRE-STEROID baseline dose (not
+// compounded). Assumes the first steroid dose is given the morning of Day 1.
+export const MATHIESEN = {
+  onsetHours: [3, 8] as [number, number], // hyperglycemia may begin 3–8 h post-dose
+  elevatedUpToDays: 5,
+  firstDoseMorningDay1: true,
+  source: "Mathiesen ER algorithm · perinatology.com",
+} as const;
+
+export interface SteroidRegimen {
+  breakfast: number;
+  lunch: number;
+  dinner: number;
+  hs: number;
+}
+
+export type SteroidDay = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+type MathiesenFactor = [number, number]; // [low, high]
+
+const MATHIESEN_FACTORS: Record<SteroidDay, { meal: MathiesenFactor; hs: MathiesenFactor; label: string; taper: boolean }> = {
+  1: { meal: [1, 1], hs: [1.25, 1.25], label: "Increase nighttime (HS) insulin by 25%", taper: false },
+  2: { meal: [1.4, 1.4], hs: [1.4, 1.4], label: "Increase all insulin doses by 40%", taper: false },
+  3: { meal: [1.4, 1.4], hs: [1.4, 1.4], label: "Increase all insulin doses by 40%", taper: false },
+  4: { meal: [1.2, 1.2], hs: [1.2, 1.2], label: "Increase all insulin doses by 20%", taper: false },
+  5: { meal: [1.1, 1.2], hs: [1.1, 1.2], label: "Increase all insulin doses by 10–20%", taper: false },
+  6: { meal: [1, 1], hs: [1, 1], label: "Gradually reduce toward the pre-steroid dose", taper: true },
+  7: { meal: [1, 1], hs: [1, 1], label: "Gradually reduce toward the pre-steroid dose", taper: true },
+};
+
+export interface MathiesenDose {
+  day: SteroidDay;
+  instruction: string;
+  taper: boolean;
+  breakfast: [number, number];
+  lunch: [number, number];
+  dinner: [number, number];
+  hs: [number, number];
+}
+
+function applyRange(v: number, f: MathiesenFactor): [number, number] {
+  return [pyRound(v * f[0]), pyRound(v * f[1])];
+}
+
+/** Adjusted doses for a given steroid day, from the pre-steroid baseline. */
+export function mathiesenSteroidAdjustment(base: SteroidRegimen, day: SteroidDay): MathiesenDose {
+  const f = MATHIESEN_FACTORS[day];
+  return {
+    day,
+    instruction: f.label,
+    taper: f.taper,
+    breakfast: applyRange(base.breakfast, f.meal),
+    lunch: applyRange(base.lunch, f.meal),
+    dinner: applyRange(base.dinner, f.meal),
+    hs: applyRange(base.hs, f.hs),
+  };
+}
+
+/** The full Days 1–7 schedule for a baseline regimen. */
+export function mathiesenSchedule(base: SteroidRegimen): MathiesenDose[] {
+  return ([1, 2, 3, 4, 5, 6, 7] as SteroidDay[]).map((d) => mathiesenSteroidAdjustment(base, d));
+}
+
 // ── §10 Diabetic ketoacidosis (Module H) ────────────────────────────────────
 // Sole source: UC23. REFERENCE PROTOCOL ONLY — this app does not automate DKA
 // dosing (an ICU-level condition). The engine here supports recognition
