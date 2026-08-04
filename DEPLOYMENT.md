@@ -13,17 +13,22 @@ default branch.
 
 ## One-time setup (you do this once, in the GitHub UI)
 
-1. Get the code onto the **default branch**. The workflow deploys from `main`
-   (or `master`). Merge this branch into `main` — e.g. open a pull request from
-   `claude/claude-md-docs-2di2j6` into `main` and merge it, or push these
-   commits to `main`.
-2. In the repository on GitHub, go to **Settings → Pages**.
-3. Under **Build and deployment → Source**, choose **GitHub Actions**.
-   (That's the only setting to change — you do *not* pick a branch here.)
+There is exactly **one** setting to change:
 
-That's it. The next push to the default branch runs the workflow; you can also
-trigger it manually from the **Actions** tab → *Deploy to GitHub Pages* → *Run
-workflow*.
+1. In the repository on GitHub, go to **Settings → Pages**.
+2. Under **Build and deployment → Source**, choose **GitHub Actions**.
+
+> ❗ **This is the step that matters.** If the source is set to **"Deploy from
+> a branch"** (the default), GitHub publishes the *raw source files* — the
+> unbuilt `index.html` points at `/src/main.tsx`, which the browser can't run,
+> so you get a **blank page**. Only the **GitHub Actions** source runs the build
+> that compiles the app.
+
+The deploy workflow (`.github/workflows/deploy.yml`) is set to run on the
+`claude/claude-md-docs-2di2j6` branch as well as `main`/`master`, so it deploys
+from wherever the code currently lives. After switching the source, either push
+a commit or trigger it manually: **Actions** tab → *Deploy to GitHub Pages* →
+*Run workflow*.
 
 ## Your URL
 

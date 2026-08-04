@@ -25,6 +25,7 @@ import { LaborTab } from "./ui/LaborTab";
 import { AdjustTab } from "./ui/AdjustTab";
 import { CgmTab } from "./ui/CgmTab";
 import { PumpTab } from "./ui/PumpTab";
+import { PostpartumTab } from "./ui/PostpartumTab";
 
 const TABS = [
   { id: "start", label: "Start", Comp: StartTab },
@@ -33,6 +34,7 @@ const TABS = [
   { id: "adjust", label: "Adjust", Comp: AdjustTab },
   { id: "cgm", label: "CGM", Comp: CgmTab },
   { id: "pump", label: "Pump", Comp: PumpTab },
+  { id: "postpartum", label: "Postpartum", Comp: PostpartumTab },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];

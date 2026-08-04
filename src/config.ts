@@ -114,6 +114,35 @@ export interface CgmInputs {
   postDinner: number | null;
 }
 
+// ── Postpartum tab (§13) ────────────────────────────────────────────────────
+export interface PostpartumInputs {
+  endPregnancyTdd: number | null;
+  thirdTrimesterTdd: number | null;
+  prepregnancyTdd: number | null;
+}
+
+/** Synthetic demo — NOT a real patient. Mirrors the spec §16 PP_options_T2DM
+ *  vector (end-pregnancy 120, third-trimester 120, prepregnancy 60). */
+export const DEMO_POSTPARTUM: PostpartumInputs = {
+  endPregnancyTdd: 120,
+  thirdTrimesterTdd: 120,
+  prepregnancyTdd: 60,
+};
+
+/** Postpartum glycemic target tiers (UC23 / VB24). Display-only reference. */
+export interface PostpartumTargetTier {
+  phase: string;
+  target: string;
+  source: string;
+}
+export const POSTPARTUM_TARGETS: PostpartumTargetTier[] = [
+  { phase: "Inpatient", target: "FBG < 126 · 1-h PP < 180", source: "UC23" },
+  { phase: "Outpatient transition", target: "FBG < 100 · 1-h PP < 140", source: "UC23" },
+  { phase: "Breastfeeding", target: "1-h PP < 150", source: "UC23" },
+  { phase: "Pump", target: "80–120", source: "UC23" },
+  { phase: "T2DM (acceptable)", target: "fasting 100–125 · random/PP 160–180", source: "VB24" },
+];
+
 /** Synthetic demonstration CGM window — NOT a real patient. Slightly
  *  out-of-target so the scorecard, basal flag, and tagged values are illustrative. */
 export const DEMO_CGM: CgmInputs = {
