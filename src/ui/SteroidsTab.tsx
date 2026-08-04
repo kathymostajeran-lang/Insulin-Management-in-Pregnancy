@@ -1,38 +1,21 @@
 /**
- * SteroidsTab — antenatal corticosteroid hyperglycemia (spec §9 / Module G).
+ * SteroidsTab — antenatal corticosteroid insulin adjustment (spec §9 / Module G).
  *
- * The insulin adjustment uses the pregnancy-specific Mathiesen ER algorithm for
- * betamethasone (perinatology.com): a day-by-day increase over the pre-steroid
- * baseline (Day 1 nighttime +25%, Day 2–3 +40%, Day 4 +20%, Day 5 +10–20%,
- * taper Days 6–7). Monitoring cadence, the >200 mg/dL escalation, and the
- * transient-effect safety framing are UC23. All math lives in dosing.ts.
+ * Uses the pregnancy-specific Mathiesen ER algorithm for betamethasone
+ * (perinatology.com): a day-by-day increase over the pre-steroid baseline
+ * (Day 1 nighttime +25%, Day 2–3 +40%, Day 4 +20%, Day 5 +10–20%, taper Days
+ * 6–7). All math lives in dosing.ts.
  */
 import { useState } from "react";
-import {
-  mathiesenSchedule,
-  steroidBgAction,
-  STEROID,
-  MATHIESEN,
-  type SteroidRegimen,
-  type MathiesenDose,
-} from "../logic/dosing";
-import { Kicker, NumberField, Seg, Alert, Cite } from "./controls";
-
-const YN: ReadonlyArray<{ value: "yes" | "no"; label: string }> = [
-  { value: "yes", label: "Yes" },
-  { value: "no", label: "No" },
-];
+import { mathiesenSchedule, MATHIESEN, type SteroidRegimen, type MathiesenDose } from "../logic/dosing";
+import { Kicker, NumberField, Alert, Cite } from "./controls";
 
 const fmt = (r: [number, number]) => (r[0] === r[1] ? `${r[0]}` : `${r[0]}–${r[1]}`);
 
 export function SteroidsTab() {
   const [base, setBase] = useState<SteroidRegimen>({ breakfast: 10, lunch: 8, dinner: 12, hs: 20 });
-  const [bg, setBg] = useState<number | null>(210);
-  const [onInsulin, setOnInsulin] = useState<"yes" | "no">("yes");
 
-  const schedule = mathiesenSchedule(base);
-  const days1to5 = schedule.filter((d) => !d.taper);
-  const bgAction = bg === null ? null : steroidBgAction(bg, onInsulin === "yes");
+  const days1to5 = mathiesenSchedule(base).filter((d) => !d.taper);
 
   function patchBase(p: Partial<SteroidRegimen>) {
     setBase((prev) => ({ ...prev, ...p }));
@@ -40,7 +23,6 @@ export function SteroidsTab() {
 
   return (
     <>
-      {/* ── Mathiesen insulin adjustment ──────────────────────────── */}
       <section>
         <Kicker>Insulin adjustment · Mathiesen algorithm · betamethasone</Kicker>
         <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
@@ -97,43 +79,6 @@ export function SteroidsTab() {
           regimen — taper to the pre-steroid dose by Days 6–7 and reassess.<Cite> spec §9 mitigation</Cite>
         </p>
       </Alert>
-
-      {/* ── Glucose action (breakthrough) ─────────────────────────── */}
-      <section>
-        <Kicker>Breakthrough glucose</Kicker>
-        <div className="rail" style={{ marginTop: 8 }}>
-          <NumberField label="Blood glucose · mg/dL" value={bg} onChange={setBg} min={0} />
-          <div className="field">
-            <label>Already on insulin?</label>
-            <Seg name="oninsulin" value={onInsulin} options={YN} onChange={setOnInsulin} />
-          </div>
-        </div>
-        {bgAction ? (
-          bgAction.escalate ? (
-            <Alert title={`BG > ${STEROID.escalateIfBgGt} — treat`}>
-              <p style={{ marginBottom: 0 }}>{bgAction.message}</p>
-            </Alert>
-          ) : (
-            <p className="text-muted" style={{ fontSize: 13, marginTop: 8 }}>{bgAction.message}</p>
-          )
-        ) : null}
-      </section>
-
-      {/* ── Physiology + monitoring reference ─────────────────────── */}
-      <section className="card elev-sm">
-        <div className="card-kicker">Physiology &amp; monitoring · UC23</div>
-        <table className="dtab">
-          <tbody>
-            <tr><td>Peak response</td><td>{STEROID.peakHours[0]}–{STEROID.peakHours[1]} h (onset can be delayed; may persist {STEROID.persistWeeks[0]}–{STEROID.persistWeeks[1]} weeks)</td></tr>
-            <tr><td>Typical max BG</td><td>&lt; {STEROID.typicalMaxBgNondiabetic} mg/dL in non-diabetic pregnancy</td></tr>
-            <tr><td>While NPO</td><td>check BG q8h</td></tr>
-            <tr><td>On a regular diet</td><td>check BG AC and HS</td></tr>
-            <tr><td>After 72 h · BG &lt; 200</td><td>discontinue BG monitoring</td></tr>
-            <tr><td>During window · BG &gt; 200</td><td>carbohydrate-counting pregnancy diet; check BG 7×/day; treat as needed</td></tr>
-          </tbody>
-        </table>
-        <div className="card-meta"><Cite>UC23 · other amplifiers: {STEROID.otherAmplifiers.join(", ")}</Cite></div>
-      </section>
     </>
   );
 }
