@@ -43,10 +43,11 @@ src/
 │   └── PumpTab.tsx      # CSII initiation (C-14 resolved)
 └── styles/
     ├── modernist.css    # Design-system tokens — copied VERBATIM; do not edit token values
-    └── app.css          # Application styles built on top of the tokens
+    ├── app.css          # Application styles built on top of the tokens
+    └── fonts/           # Archivo (variable woff2), vendored & bundled by Vite — no font CDN
 
-public/fonts/         # Archivo (variable woff2), vendored locally — no external font CDN
 docs/                 # Clinical sources of truth (see §7) — spec, parameters, reference engine, prototype
+.github/workflows/    # deploy.yml — builds, tests, publishes to GitHub Pages (see DEPLOYMENT.md)
 ```
 
 **The load-bearing rule:** clinical truth lives in **`src/logic/dosing.ts`** and nowhere else. `model.ts`, `config.ts`, the UI, and styles are glue, tuning, and presentation around that core.
@@ -79,8 +80,8 @@ Follow these exactly — they are what make the codebase safe and consistent.
 ### Styles — `src/styles/`
 - `modernist.css` are **design tokens copied verbatim** from the prototype — do **not** alter token values (colors, spacing, radius=0, Archivo). App-specific styling goes in `app.css`.
 
-### Fonts — `public/fonts/`
-- **Archivo is vendored locally** (variable woff2, one file per unicode subset). Do not add external font CDNs or network `@import`.
+### Fonts — `src/styles/fonts/`
+- **Archivo is vendored locally** (variable woff2, one file per unicode subset) and imported through the bundler, so asset URLs stay correct under any base path (e.g. the GitHub Pages sub-path). Do not add external font CDNs or network `@import`.
 
 ---
 
