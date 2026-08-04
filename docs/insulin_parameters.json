@@ -1,0 +1,549 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "spec_version": "1.0.0",
+  "companion_document": "PREGNANCY_INSULIN_ALGORITHMS.md",
+  "units": {
+    "glucose": "mg/dL",
+    "insulin": "units",
+    "weight": "kg",
+    "gestational_age": "weeks_decimal"
+  },
+
+  "sources": {
+    "ADA26": {
+      "citation": "ADA Professional Practice Committee. Standards of Care in Diabetes-2026, Section 15. Diabetes Care 2026;49(Suppl 1):S321-S338.",
+      "doi": "10.2337/dc26-S015",
+      "year": 2026
+    },
+    "ES25": {
+      "citation": "Wyckoff JA, Lapolla A, Asias-Dinh BD, et al. Preexisting Diabetes and Pregnancy: An Endocrine Society and European Society of Endocrinology Joint Clinical Practice Guideline. J Clin Endocrinol Metab 2025;110:2405-2452.",
+      "doi": "10.1210/clinem/dgaf288",
+      "year": 2025
+    },
+    "VB24": {
+      "citation": "Valent AM, Barbour LA. Insulin Management for Gestational and Type 2 Diabetes in Pregnancy. Obstet Gynecol 2024;144:633-647.",
+      "doi": "10.1097/AOG.0000000000005640",
+      "year": 2024
+    },
+    "UC23": {
+      "citation": "University of Cincinnati Department of Obstetrics and Gynecology, Division of Maternal Fetal Medicine. Diabetes and Pregnancy Pocket Guide for Healthcare Professionals, 2023.",
+      "year": 2023
+    }
+  },
+
+  "policy_switches": {
+    "TDD_SCHEDULE":            {"options": ["VB24", "UC23"], "default": "VB24", "conflict": "C-02"},
+    "HYPOGLYCEMIA_THRESHOLD":  {"options": ["ADA26", "UC23", "VB24"], "default": "ADA26", "conflict": "C-01"},
+    "CORRECTION_CONSTANT":     {"options": [1500, 1700, 1800], "default": 1500, "conflict": "C-03"},
+    "ICR_CONSTANT":            {"options": [400, 500], "default": 400, "conflict": "C-04"},
+    "CORRECTION_METHOD":       {"options": ["ICF", "FIXED_TABLE"], "default": "ICF", "conflict": "C-06"},
+    "TITRATION_TRIGGER":       {"options": ["TWO_SAME_TIME_PER_WEEK", "PCT_20_50_OUT_OF_RANGE", "PCT_20_ALL"], "default": "TWO_SAME_TIME_PER_WEEK", "conflict": "C-05"},
+    "INTRAPARTUM_TARGET":      {"options": [[60,100],[70,110],[70,140]], "default": [70,110], "conflict": "C-12"},
+    "INTRAPARTUM_BAND_80_99":  {"options": ["HOLD_RECHECK_1H", "INFUSE_0.5_U_HR"], "default": null, "conflict": "C-15", "requires_committee_signoff": true},
+    "POSTPARTUM_DOSE_METHOD":  {"options": ["UC23_PCT_END_PREGNANCY", "VB24_PCT_THIRD_TRIMESTER", "UC23_WEIGHT_BASED"], "default": null, "conflict": "C-13", "requires_explicit_selection": true},
+    "ASPIRIN_DOSE_MG":         {"options": [81, 100, 150, 162], "default": 150, "conflict": "C-16"},
+    "AGGRESSIVE_BASAL_TITRATION": {"options": [true, false], "default": false, "conflict": null},
+    "CGM_NONADJUNCTIVE_USE":   {"options": [true, false], "default": true, "conflict": "C-09"},
+    "PERIPARTUM_AID":          {"options": ["CONTINUE_SUPERVISED", "DISCONTINUE_OR_HALVE"], "default": "CONTINUE_SUPERVISED", "conflict": "C-18"}
+  },
+
+  "glycemic_targets": {
+    "_source": "ADA26 Table 15.2; ES25 Rec 7",
+    "T1DM":   {"fasting": [70, 95],   "pp_1h": [110, 140], "pp_2h": [100, 120]},
+    "T2DM":   {"fasting": [70, 95],   "pp_1h": [110, 140], "pp_2h": [100, 120]},
+    "GDM_A2": {"fasting": [70, 95],   "pp_1h": [110, 140], "pp_2h": [100, 120]},
+    "GDM_A1": {"fasting": [null, 95], "pp_1h": [null, 140], "pp_2h": [null, 120]},
+    "notes": [
+      "Lower bounds do not apply to T2DM treated with nutrition alone.",
+      "Use EITHER the 1-h OR the 2-h postprandial target, not both.",
+      "Postprandial timing measured from the START of the meal (UC23).",
+      "Relaxation permitted with documented rationale if targets unachievable without significant hypoglycemia."
+    ]
+  },
+
+  "preconception_targets": {
+    "_source": "ADA26",
+    "a1c_pct_max": 6.5,
+    "preprandial": [80, 110],
+    "pp_2h_max": 155,
+    "reduce_prandial_if_pp_below": 100
+  },
+
+  "a1c": {
+    "_source": "ADA26 15.9",
+    "pregnancy_goal_pct": 6.0,
+    "pregnancy_relaxed_pct": 7.0,
+    "monitoring_interval": "monthly if needed",
+    "gmi_and_estimated_a1c_prohibited_in_pregnancy": true
+  },
+
+  "cgm_targets": {
+    "_source": "ADA26; goals validated for T1DM only",
+    "sensor_range": [63, 140],
+    "tir_pct_min": 70,
+    "tbr_lt63_pct_max": 4,
+    "tbr_lt54_pct_max": 1,
+    "tar_gt140_pct_max": 25,
+    "validated_for": ["T1DM"],
+    "t2dm_gdm": "same sensor ranges endorsed; time-in-range goal amount undefined (insufficient data)",
+    "min_days_for_titration": 10,
+    "min_wear_pct_for_titration": 70,
+    "suppress_day_1_of_wear": true,
+    "must_not_be_sole_titration_input": true,
+    "must_not_be_sole_titration_input_source": "ES25 Rec 7; ADA26 15.12"
+  },
+
+  "hypoglycemia": {
+    "thresholds": {
+      "ADA26": {"meter": 70, "sensor": 63},
+      "UC23":  {"meter": 60},
+      "VB24":  {"meter_range": [65, 70]}
+    },
+    "outpatient_treatment": {
+      "cho_grams_max": 15,
+      "_source": "VB24 - no more than 15 g simple sugar to avoid rebound hyperglycemia",
+      "recheck_minutes": [10, 15],
+      "rule_of_15_uc23": {"cho_g": 15, "recheck_min": 15, "expected_rise_mgdl": 15},
+      "pre_exercise_cho_if_bg_below": 100
+    },
+    "inpatient_ladder_uc23": [
+      {"condition": "BG > 60", "action": "DO NOT TREAT; ensure 3 meals + 3 snacks on time, 2-3 h apart"},
+      {"condition": "BG < 60, alert, can take PO", "action": "4 oz apple juice OR 4 glucose tablets (4 g each) with 8 oz water; recheck q15 min until BG > 60 x2", "prohibited": "complex CHO (milk, cookies, candy, peanut butter crackers, sandwiches)"},
+      {"condition": "BG < 40 + symptoms", "action": "8 oz apple juice; do not leave patient alone; recheck q15 min until BG > 60 x2"},
+      {"condition": "BG < 60, alert, cannot take PO", "action": "GLUCAGON 1 mg IM stat; recheck q15 min until BG > 60 x2"},
+      {"condition": "unconscious or unresponsive", "action": "GLUCAGON 1 mg SC or IM stat; ensure venous access; recheck q5 min; if BG not > 60 after 15 min start D5NS or D10NS @ 200 mL/hr until BG > 60 x2; D5NS @ 125 mL/hr if BG remains < 20; stay with patient; notify attending"}
+    ],
+    "glucagon": {
+      "gvoke_mg_sc": 1,
+      "baqsimi_mg_intranasal": 3,
+      "use_entire_dose": true,
+      "onset_minutes": 15,
+      "may_repeat_minutes": 20,
+      "position_on_side_vomiting_risk": true,
+      "home_kit_required_all_insulin_users": true
+    }
+  },
+
+  "initiation": {
+    "trigger": {
+      "_source": "VB24",
+      "rule": "initiate when >= 20% of measured glucose values (fasting or postprandial) are above the pregnancy target range",
+      "min_readings_required": 14,
+      "window_days": 7
+    },
+    "tdd_units_per_kg": {
+      "VB24": {
+        "standard":            {"T1": 0.7, "T2": 0.8, "T3": 0.9},
+        "insulin_sensitive":   {"T1": 0.5, "T2": 0.6, "T3": 0.7},
+        "range": [0.5, 0.9],
+        "obesity_modifier": null,
+        "obesity_note": "VB24 explicitly warns higher weight-based dosing in obesity increases hypoglycemia, defensive eating, weight gain, and worsening insulin resistance"
+      },
+      "UC23": {
+        "by_ga_weeks": [
+          {"ga_min": 1,  "ga_max": 18, "units_per_kg": 0.7},
+          {"ga_min": 18, "ga_max": 26, "units_per_kg": 0.8},
+          {"ga_min": 26, "ga_max": 36, "units_per_kg": 0.9},
+          {"ga_min": 36, "ga_max": 40, "units_per_kg": 1.0}
+        ],
+        "prepregnant": 0.6,
+        "obesity_gt_150pct_dbw": [1.5, 2.0],
+        "postpartum_wk_0_6": 0.4,
+        "weight_conversion": "lb / 2.2 = kg"
+      }
+    },
+    "pattern_routing": {
+      "_source": "VB24 Figure 2",
+      "fasting_only":      {"agent": "NPH_or_basal_at_bedtime", "dose_units_per_kg": [0.1, 0.2], "titrate_every_days": [3, 7]},
+      "postprandial_only": {"agent": "RAA_premeal", "dose_units_per_kg": [0.2, 0.4], "divided_into": 3, "titrate_every_days": [3, 7]},
+      "mixed":             {"dose_units_per_kg": [0.5, 0.9], "select_architecture": true}
+    },
+    "architectures": {
+      "basal_bolus": {"_source": "VB24", "basal_pct": 40, "bolus_pct": 60, "basal_pct_range": [40, 50], "split_basal_if_units_gt": 30},
+      "nph_raa":     {"_source": "VB24", "nph_pct": 50, "nph_morning_fraction": 0.333, "nph_bedtime_fraction": 0.667, "raa_pct": 50},
+      "conventional_nph_reg": {"_source": "VB24 / UC23", "am_fraction": 0.667, "am_nph_fraction": 0.667, "am_short_fraction": 0.333, "pm_fraction": 0.333, "pm_nph_fraction": 0.5, "pm_short_fraction": 0.5, "fasting_predominant_exception": "NPH 50:50 morning/bedtime instead of 2/3:1/3"}
+    }
+  },
+
+  "titration": {
+    "_source": "VB24; ADA26",
+    "steady_state_days": [2, 3],
+    "clinician_review_weeks": [1, 2],
+    "patient_self_titration_days": [2, 3],
+    "pattern_window_days": [3, 14],
+    "adjustment_pct": [10, 20],
+    "uptitration_continues_until_ga_weeks": 36,
+    "expected_tdd_rise_pct_per_week_after_16w": 5,
+    "expected_term_multiple_of_prepregnancy": 2,
+    "degludec_min_days_between_changes": [3, 4],
+    "aggressive_basal_titration": {
+      "_source": "VB24 (McGovern retrospective, N=111)",
+      "enabled_by_default": false,
+      "rule": "increase bedtime NPH 2-4 units every day while fasting glucose > 90 mg/dL",
+      "outcome": "higher insulin doses, tighter control, lower birth weight, no increase in hypoglycemia vs weekly clinician-led titration"
+    },
+    "first_trimester_may_decrease": true,
+    "falling_tdd_alert": {
+      "_source": "ADA26",
+      "ga_weeks_min": 28,
+      "tdd_reduction_pct_over_7_days": 15,
+      "action": "ALERT for possible placental insufficiency; do not auto-titrate"
+    },
+    "exercise_modifier_pct_reduction_max": 20,
+    "prebolus_minutes": {
+      "RAA_baseline": [15, 20],
+      "RAA_escalated_late_gestation": [15, 45],
+      "escalate_if_dose_units_gt": 20,
+      "ultrarapid": 0,
+      "regular": [30, 60],
+      "regular_preferred": 60,
+      "inhaled": 0
+    }
+  },
+
+  "correction_and_ratios": {
+    "icf": {"VB24_constant": 1500, "VB24_range": [1500, 1800], "UC23_constant": 1700, "target_mgdl": 100, "t2dm_gdm_use_lower": true},
+    "icr": {"VB24_constant": 400, "VB24_range": [400, 500], "UC23_constant": 500, "t2dm_gdm_use_lower": true},
+    "fixed_correction_table_uc23": {
+      "_source": "UC23 (de Veciana & Evans 2007)",
+      "agent": "Humalog/Novolog",
+      "constraints": ["premeal_only", "daytime_only", "never_between_meals", "never_post_meal_sliding_scale"],
+      "bands": [
+        {"bg_max": 99,  "units": 0},
+        {"bg_min": 100, "bg_max": 140, "units": 2},
+        {"bg_min": 141, "bg_max": 160, "units": 3},
+        {"bg_min": 161, "bg_max": 180, "units": 4},
+        {"bg_min": 181, "bg_max": 200, "units": 5},
+        {"bg_min": 201, "bg_max": 250, "units": 6},
+        {"bg_min": 251, "bg_max": 300, "units": 8},
+        {"bg_min": 301, "units": 10}
+      ]
+    }
+  },
+
+  "concentrated_insulin_thresholds": {
+    "_source": "VB24",
+    "consider_concentrated_tdd_gt": 200,
+    "glargine_u300_if_units_per_day_gt": 80,
+    "glargine_u100_to_u300_dose_reduction_pct": [10, 20],
+    "lispro_u200_if_bolus_units_gt": 25,
+    "lispro_u100_to_u200_dose_reduction_pct": 10,
+    "regular_u500_if_tdd_gt": 300,
+    "requires_comanagement_flag": true
+  },
+
+  "csii": {
+    "_source": "UC23 (adapted from Walsh 2000, Journsay 1998)",
+    "mdi_to_pump_multiplier": 0.75,
+    "select_lower_of_two_tdd": true,
+    "basal_pct_of_tdd": 50,
+    "basal_rate_formula": {
+      "authoritative": "total_daily_basal / 24",
+      "prose_in_source_is_wrong": "TDD / 24",
+      "conflict": "C-14",
+      "warning": "implementing the prose literally produces basal rates 2x too high"
+    },
+    "basal_rate_schedule": [
+      {"start_hour": 0, "end_hour": 3,  "multiplier": 0.8, "label": "rate_1"},
+      {"start_hour": 3, "end_hour": 8,  "multiplier": 1.2, "label": "rate_2"},
+      {"start_hour": 8, "end_hour": 24, "multiplier": 1.0, "label": "rate_3_key_value"}
+    ],
+    "correction_factor_constant": 1700,
+    "icr_constant": 500,
+    "post_first_trimester_split": {"bolus_pct": 60, "basal_pct": 40},
+    "agents": ["ASPART", "LISPRO"],
+    "worked_example": {
+      "tdd": 60, "total_daily_basal": 30,
+      "rate_3": 1.25, "rate_1": 1.00, "rate_2": 1.50,
+      "correction_factor": 28, "icr": 8
+    }
+  },
+
+  "aid_hcl": {
+    "recommendations": {
+      "ADA26_15_19": {"text": "AID with pregnancy-specific glucose targets recommended for pregnant T1DM", "grade": "A"},
+      "ADA26_15_20": {"text": "AID without pregnancy-specific targets may be considered for select T1DM with assistive techniques and experienced team", "grade": "B"},
+      "ES25_Rec8":   {"text": "HCL pump suggested over pump+CGM (no algorithm) or MDI+CGM in T1DM", "grade": "2 | very low certainty"}
+    },
+    "aidapt_targets": {"early_pregnancy_mgdl": 100, "from_16_20_weeks_mgdl": [81, 90], "availability_note": "FDA approved but not currently available in the US per ADA26"},
+    "other_studied_targets": {"CRISTAL_mgdl": 100, "Polsky_mgdl": 120},
+    "must_display_system_minimum_target": true,
+    "flag_if_min_target_exceeds_fasting_range": true,
+    "assistive_techniques": ["fake carbohydrate insulin boluses", "alternating SAP/manual and automated mode by time of day or stage of pregnancy", "expert interprofessional pump management"],
+    "effect_sizes_es25_meta": {
+      "tir_24h_md_pct": 3.81, "tir_24h_ci": [-4.24, 11.86],
+      "tbr_24h_md_pct": -0.88, "tbr_24h_ci": [-2.04, 0.27],
+      "tir_overnight_md_pct": 10.18, "tir_overnight_ci": [7.42, 12.94],
+      "tbr_overnight_md_pct": -0.67, "tbr_overnight_ci": [-0.91, -0.43],
+      "lga_rr": 0.82, "lga_ci": [0.48, 1.41],
+      "sga_rr": 3.03, "sga_ci": [0.49, 18.62],
+      "neonatal_hypo_rr": 1.19, "neonatal_hypo_ci": [0.23, 6.20]
+    }
+  },
+
+  "corticosteroids": {
+    "_source": "UC23",
+    "peak_response_hours": [48, 72],
+    "onset_may_be_delayed_days": true,
+    "may_persist_weeks": [1, 2],
+    "typical_max_bg_nondiabetic": 180,
+    "monitor_hours": 72,
+    "monitor_frequency_npo": "q8h",
+    "monitor_frequency_diet": "AC and HS",
+    "discontinue_monitoring_if_bg_lt": 200,
+    "escalate_if_bg_gt": 200,
+    "escalation_action": "initiate carbohydrate-counting pregnancy diet; check BG 7x/day; treat as necessary",
+    "prn_raa_if_bg_gt": 200,
+    "existing_insulin_users": "increase doses aggressively and proportionately to level of hyperglycemia",
+    "suspend_baseline_titration_days": [7, 14],
+    "other_amplifiers": ["obesity", "sepsis or other infection"]
+  },
+
+  "dka": {
+    "_source": "UC23 (sole source)",
+    "incidence_pregestational_t1dm_pct": [5, 10],
+    "euglycemic_dka_more_common_in_pregnancy": true,
+    "diagnostic": {"ph_max": 7.3, "bicarb_max_meq_l": 15, "anion_gap_min": 10, "serum_ketones": "elevated"},
+    "icu_criteria": ["altered sensorium", "pH < 7.1", "abnormal EKG", "Kussmaul respiration"],
+    "fluids": {
+      "hour_1_liters_ns": 1,
+      "hours_2_to_4_liters_per_hour": [0.5, 1.0],
+      "thereafter_ml_per_hour": 250,
+      "thereafter_fluid": "0.45% NS",
+      "until": "80% of deficit corrected",
+      "switch_to_d5_half_ns_when_bg_lt": 300
+    },
+    "insulin": {
+      "loading_units_per_kg": [0.1, 0.4],
+      "maintenance_units_per_hour": [2, 10],
+      "double_rate_if_bg_not_decreased_pct": 20,
+      "double_rate_window_hours": 2,
+      "continue_until": "bicarbonate and anion gap normalize (NOT until glucose normalizes)",
+      "euglycemic_dka_note": "may need D5 to permit continued insulin administration"
+    },
+    "potassium": {
+      "if_normal_or_low_meq_per_hour_max": [15, 20],
+      "if_elevated": "no supplemental K until normal, then 20-30 mEq/L"
+    },
+    "phosphate": {"replace_if_serum_lt_mg_dl": 1.0, "or_if": ["cardiac dysfunction", "obtunded"]},
+    "monitoring": {
+      "bg": "q1h", "vitals": "q1-2h",
+      "electrolytes_vbg_ketones": "until pH/anion gap normalize",
+      "maternal_ecg_pulse_ox": "continuous",
+      "fetal": "CEFM if > 24 weeks, else FHT q4-8h",
+      "foley_and_io": "hourly",
+      "consults": ["NICU", "Anesthesia"]
+    },
+    "do_not_deliver_during_dka": true
+  },
+
+  "iv_infusion": {
+    "_source": "UC23",
+    "antepartum": {
+      "bg_frequency": "on admission and q1h",
+      "discontinue_all_sc_insulin": true,
+      "target": [60, 100],
+      "ivf_ml_per_hour": 125,
+      "ivf_options": ["LR", "D5NS"],
+      "insulin_concentration": "Regular 100 units / 100 mL NS (1 unit/mL)",
+      "start_units_per_hour": 0.5,
+      "iv_to_sc_conversion_multiplier": 1.25
+    },
+    "intrapartum": {
+      "applies_to": ["T1DM", "T2DM"],
+      "gdm_a2_note": "usually does not require insulin during labor unless BG > 110",
+      "bg_frequency_active_labor": "q1h",
+      "bg_frequency_latent_labor": "q2h",
+      "target_uc23": [60, 100],
+      "target_vb24": [70, 110],
+      "npo_or_non_cho_clears": true,
+      "ivf": "D5NS in T1DM or LR @ 125 mL/hr",
+      "start_units_per_hour": 0.5,
+      "stop_if_hypoglycemic": true,
+      "restart_if_bg_gt_x2": 80,
+      "table": [
+        {"bg_max": 79,  "units_per_hour": 0,    "action": "discontinue drip"},
+        {"bg_min": 80,  "bg_max": 99, "units_per_hour": null, "action": "NOT SPECIFIED IN SOURCE", "conflict": "C-15"},
+        {"bg_min": 100, "bg_max": 120, "units_per_hour": 0.5},
+        {"bg_min": 121, "bg_max": 140, "units_per_hour": 1.0},
+        {"bg_min": 141, "bg_max": 160, "units_per_hour": 1.5},
+        {"bg_min": 161, "bg_max": 180, "units_per_hour": 2.0},
+        {"bg_min": 181, "bg_max": 200, "units_per_hour": 2.5},
+        {"bg_min": 201, "bg_max": 300, "units_per_hour": 3.0},
+        {"bg_min": 301, "units_per_hour": null, "action": "call MD"}
+      ],
+      "ivf_all_bands": "D5NS @ 125 mL/hr"
+    },
+    "delivery_planning": {
+      "insulin_day_prior": "give usual dose",
+      "discontinue_insulin_at": "midnight",
+      "npo_until_delivery": true,
+      "oral_agents": "usual dose the day before; discontinue day of delivery",
+      "start_iv_insulin_if": "BG > 110 and < 140 x2, OR BG > 140 x1",
+      "prolonged_iol": "discontinue pitocin in time to give usual dinner calories; give pre-dinner RAA and HS NPH"
+    }
+  },
+
+  "csii_peripartum": {
+    "_source": "UC23",
+    "active_labor": {
+      "npo": true,
+      "use_lowest_basal_until_active_labor": true,
+      "options": ["discontinue pump", "decrease basal rate by 50%"],
+      "bg_frequency": "q1h",
+      "suspend_if_bg_lt": 80,
+      "suspend_if_active_labor_and_bg_lt": 100
+    },
+    "cesarean": {"maintain_basal_until_hour": 6, "discontinue_before_or": true},
+    "postpartum": {
+      "restart_when_bg_gt": 180,
+      "basal_rate_fraction_of_predelivery": [0.333, 0.5],
+      "increase_icr_and_isf_pct": 50,
+      "bg_target": [80, 120]
+    }
+  },
+
+  "postpartum": {
+    "immediate_reduction_pct_uc23": [50, 75],
+    "ada26_vs_prepregnancy_pct_lower": 34,
+    "return_to_prepregnancy_sensitivity_weeks": [1, 2],
+    "dose_options": {
+      "UC23_pct_of_end_pregnancy_tdd": [25, 33],
+      "VB24_pct_of_third_trimester_tdd": [30, 40],
+      "UC23_weight_based_units_per_kg": 0.4,
+      "warning": "different denominators - end-pregnancy, third-trimester, and prepregnancy TDD are NOT interchangeable"
+    },
+    "gdm": {
+      "discontinue_iv_insulin_after_placenta": true,
+      "resume_regular_diet": true,
+      "monitor": "FBG and 1-h postprandial until discharge",
+      "continue_smbg_if_fbg_gt": 100,
+      "continue_smbg_if_pp_gt": 180,
+      "start_metformin_if_bg_gt": 180
+    },
+    "preexisting": {
+      "discontinue_iv_insulin_after_placenta": true,
+      "resume_cho_counting": true,
+      "lactating_use_pregnancy_calories": true,
+      "restart_metformin_if_prepregnancy_controlled_on_metformin": true,
+      "vb24_discontinue_insulin_immediately_if_prepregnancy_a1c_lt": 7.5
+    },
+    "targets": {
+      "inpatient_uc23":  {"fbg_max": 126, "pp_1h_max": 180},
+      "outpatient_uc23": {"fbg_max": 100, "pp_1h_max": 140},
+      "pump_uc23":       {"range": [80, 120]},
+      "vb24_t2dm":       {"fasting": [100, 125], "random_or_pp": [160, 180]},
+      "breastfeeding_uc23": {"pp_1h_max": 150}
+    },
+    "lactation": {
+      "check_bg_before_breastfeeding_especially_night": true,
+      "cho_snack_if_bg_lt": 100,
+      "cho_snack_grams": 15,
+      "extra_calories_over_prepregnant": 500,
+      "permitted": ["glyburide", "metformin", "acarbose"],
+      "not_encouraged": ["GLP-1RA", "SGLT2i", "DPP-4i"],
+      "degludec_reduce_days_before_delivery_min": 3
+    },
+    "screening": {
+      "gdm_ogtt_grams": 75,
+      "gdm_ogtt_timing_ada26": "4-12 weeks postpartum",
+      "gdm_ogtt_timing_uc23": "6-12 weeks postpartum",
+      "gdm_ongoing_interval_years": [1, 3],
+      "gdm_ongoing_interval_uc23_years": 3,
+      "a1c_alternative_if_ogtt_declined": "6-12 months postpartum",
+      "prefer_ogtt_over_a1c_reason": "A1C persistently lowered by pregnancy RBC turnover, delivery blood loss, preceding 3-month glucose profile",
+      "visit_schedule_uc23": ["2 weeks", "6 weeks"],
+      "endocrine_care_in_addition_to_obstetric_care": true,
+      "endocrine_care_source": "ES25 Rec 10"
+    },
+    "t2dm_risk_after_gdm_pct": {"10y": 20, "20y": 30, "30y": 40, "40y": 50, "50y": 60, "relative_risk_vs_no_gdm": 10}
+  },
+
+  "non_glycemic": {
+    "aspirin": {
+      "_source": "ADA26 15.23",
+      "dose_mg_per_day": [100, 150],
+      "alternative_acceptable_mg": 162,
+      "start_ga_weeks": [12, 16],
+      "indication": "type 1 or type 2 diabetes",
+      "note": "low-dose aspirin < 100 mg is NOT effective in reducing preeclampsia",
+      "uc23_conflicting_dose_mg": 81,
+      "gdm_candidates": "single high-risk factor (chronic HTN, autoimmune disease) or multiple moderate risk factors (nulliparous, obesity, age >= 35)"
+    },
+    "blood_pressure": {
+      "_source": "ADA26 15.24",
+      "treat_threshold": "140/90",
+      "deintensify_below": "90/60",
+      "secondary_analysis_target": "<130/80 associated with better composite perinatal outcome in diabetes + chronic HTN (not randomized)",
+      "safe_agents": ["methyldopa", "nifedipine", "labetalol", "clonidine", "hydralazine"],
+      "atenolol_not_recommended": true,
+      "diuretics_generally_not_recommended": true
+    },
+    "contraindicated": {
+      "absolute": ["ACE inhibitors", "ARBs", "mineralocorticoid receptor antagonists"],
+      "default_stop": ["statins", "bempedoic acid", "PCSK9 therapies", "fibrates"],
+      "statin_override_permitted_for": ["familial hypercholesterolemia (homozygous or severe heterozygous)", "severe hypertriglyceridemia", "prior ASCVD event"],
+      "statin_override_requires": "documented shared decision-making",
+      "hydrophilic_statin_note": "pravastatin may be associated with less fetal harm than lipophilic statins"
+    },
+    "supplements": {"folic_acid_mcg": [400, 800], "potassium_iodide_mcg": 150},
+    "ophthalmology": {"dilated_exam": ["before pregnancy", "first trimester", "every trimester", "1 year postpartum as indicated"]}
+  },
+
+  "nutrition": {
+    "ada26_minimums": {"carbohydrate_g": 175, "protein_g": 71, "fiber_g": 28},
+    "es25_position": "either <175 g/day or >175 g/day; evidence insufficient; both lower and upper extremes harmful",
+    "severe_restriction_harm_threshold_g": 95,
+    "severe_restriction_ntd_risk_increase_pct": [20, 100],
+    "uc23_prescription": {
+      "breakfast_g": 30, "lunch_g": 45, "dinner_g": 45, "snacks_count": 3, "snack_g": 15,
+      "computed_total_g": 165,
+      "conflict": "C-17 - below the ADA26 175 g/day minimum"
+    },
+    "avoid_eating_patterns": ["ketogenic", "paleo (dairy restriction)", "excess saturated fat"]
+  },
+
+  "physical_activity": {
+    "_source": "ADA26; UC23",
+    "minutes_per_week_moderate": 150,
+    "uc23_daily_minutes": [30, 60],
+    "post_meal_minutes": [15, 30],
+    "may_divide_into_segments": "15 min x3 daily",
+    "cho_if_pre_exercise_bg_lt": 100,
+    "cho_grams": 15,
+    "insulin_reduction_pct_high_intensity_max": 20
+  },
+
+  "delivery_timing": {
+    "_source": "ES25 Rec 9",
+    "recommendation": "early delivery based on risk assessment rather than expectant management",
+    "no_validated_tool": true,
+    "risk_inputs": ["history of diabetes-related complications", "measures of glycemia", "ultrasound fetal growth", "amniotic fluid volume", "other comorbidities"],
+    "panel_upper_limit": "38 6/7 weeks even with ideal glycemic control",
+    "acog_ideal_control": ["39 0/7", "39 6/7"],
+    "acog_vascular_or_hyperglycemia_or_prior_stillbirth": ["36 0/7", "38 6/7"],
+    "counseling_figures": {
+      "pdm_stillbirth_pooled_or": 3.74, "pdm_stillbirth_ci": [3.17, 4.41],
+      "pdm_plus_class3_obesity_ahr_37_39wk": 25.34, "ci": [15.58, 41.22]
+    }
+  },
+
+  "hard_stops": [
+    {"id": "HS-01", "rule": "BLOCK post-meal sliding-scale insulin", "source": "UC23"},
+    {"id": "HS-02", "rule": "BLOCK fixed correction table for between-meal use", "source": "UC23"},
+    {"id": "HS-03", "rule": "BLOCK premixed insulin in pregnancy", "source": "VB24"},
+    {"id": "HS-04", "rule": "BLOCK detemir (removed from market)", "source": "ADA26"},
+    {"id": "HS-05", "rule": "BLOCK metformin if chronic_htn OR preeclampsia OR fgr_risk OR nephropathy", "source": "ADA26, ES25"},
+    {"id": "HS-06", "rule": "BLOCK GLP-1RA / SGLT2i / DPP-4i in pregnancy and lactation", "source": "ADA26, VB24"},
+    {"id": "HS-07", "rule": "BLOCK ACE inhibitors, ARBs, MRAs", "source": "ADA26 15.25a"},
+    {"id": "HS-08", "rule": "BLOCK lipid-lowering agents by default; override requires documented indication", "source": "ADA26 15.25b"},
+    {"id": "HS-09", "rule": "BLOCK GMI / estimated-A1C display in pregnancy", "source": "ADA26 15.13"},
+    {"id": "HS-10", "rule": "BLOCK dose recommendations from < 10 days CGM or < 70% wear", "source": "implementation"},
+    {"id": "HS-11", "rule": "BLOCK dose recommendations from day 1 of sensor wear", "source": "ADA26"},
+    {"id": "HS-12", "rule": "BLOCK degludec dose changes at intervals < 3-4 days", "source": "ADA26"},
+    {"id": "HS-13", "rule": "BLOCK weight loss recommendations in pregnancy", "source": "ADA26"},
+    {"id": "HS-14", "rule": "BLOCK all other modules while a DKA episode is active", "source": "implementation"},
+    {"id": "HS-15", "rule": "HALT + ALERT on >= 15% TDD reduction over 7 days at GA >= 28 weeks", "source": "ADA26"},
+    {"id": "HS-16", "rule": "ALERT on rapid glycemic normalization in known retinopathy", "source": "ADA26"}
+  ]
+}

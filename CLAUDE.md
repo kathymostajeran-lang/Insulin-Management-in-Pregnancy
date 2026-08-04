@@ -2,89 +2,114 @@
 
 Guidance for AI assistants (and humans) working in the **Insulin Management in Pregnancy** repository.
 
-> **Status:** The architecture below is the agreed design for the app. Source files are being scaffolded — when you add or change a file, keep the sections here in sync in the same commit so this document never drifts from the code. Where a path is described but not yet committed, treat this file as the spec for how it should be built.
+> **The code is the source of truth.** On every substantive change, update the section here it affects — layout (§2), conventions (§3), commands (§4). If this file contradicts the code, fix this file.
 
 ---
 
 ## 1. What this project is
 
-A **React + TypeScript single-page app** that helps compute and present **insulin dosing for pregnancy** (gestational and pre-existing diabetes). The app takes patient inputs, derives a **Total Daily Dose (TDD)**, and presents guidance across tabbed views.
+A **React + TypeScript single-page app** (Vite) that computes and presents **insulin dosing for pregnancy** (gestational and pre-existing diabetes). It takes patient inputs, derives a **Total Daily Dose (TDD)**, and presents guidance across five tabbed modules: **Start** (initiation), **Correct** (pre-meal correction), **Labor** (intrapartum IV infusion), **Adjust** (SMBG titration), and **Pump** (CSII initiation).
 
-Every clinical rule is **guideline-based and traceable to its source** — the codebase is built so that any number a clinician sees can be traced back to a citation in code. This is a **safety-sensitive** project; see §6.
+Every clinical rule is **guideline-based and traceable to its source**: any number a clinician sees traces back to a cited function in `src/logic/dosing.ts`, and the regression suite pins every published worked example. This is a **safety-sensitive** project — see §6.
+
+The clinical logic is derived from four sources, vendored under `docs/` (see §7). The design system and the five-tab UX come from the `Insulin_Rx` prototype (`docs/Insulin_Rx_prototype.html`).
 
 ---
 
 ## 2. Repository layout
 
 ```
+index.html            # Vite entry; mounts #root, sets title/theme, self-icon
+vite.config.ts        # Vite + React plugin; Vitest config; base "./" for portability
+tsconfig*.json        # Project-references TS config (app / node)
+package.json          # Scripts + deps (see §4)
+
 src/
+├── main.tsx          # React entry: imports styles, renders <App/>
+├── App.tsx           # Shell: patient inputs, TDD banner, tab routing (no clinical math)
+├── model.ts          # Glue: inputs → kg/DBW → calls dosing.ts. No thresholds/formulas here
+├── config.ts         # Tunable knobs: policy switches, titration step, demo prefill, target tables
+├── vite-env.d.ts     # Vite client types (CSS module imports)
 ├── logic/
-│   └── dosing.ts     # All clinical rules as PURE functions, each citing its source page
-├── config.ts         # Tunable constants: starting unit, titration step, demo prefill
-├── App.tsx           # App shell: patient inputs, TDD banner, tab routing
-├── ui/               # One component per tab + shared controls
+│   ├── dosing.ts        # ALL clinical rules as PURE functions, each citing its source
+│   └── dosing.test.ts   # Regression suite — every published worked example (Vitest)
+├── ui/
+│   ├── types.ts         # Shared TabProps
+│   ├── controls.tsx     # Shared presentational controls (no clinical math)
+│   ├── StartTab.tsx     # Initiation schedule (conventional NPH/RAA split)
+│   ├── CorrectTab.tsx   # Calculated ICF correction + UC23 fixed scale (+ hard stop)
+│   ├── LaborTab.tsx     # UC23 intrapartum IV algorithm (+ C-15 policy gap)
+│   ├── AdjustTab.tsx    # Pattern-based SMBG titration (+ 20% TDD cap)
+│   └── PumpTab.tsx      # CSII initiation (C-14 resolved)
 └── styles/
-    ├── modernist.css # Design-system tokens — copied VERBATIM, do not edit token values
-    └── app.css       # Application styles built on top of the tokens
-public/
-└── fonts/            # Archivo font, vendored locally (no external font CDN)
+    ├── modernist.css    # Design-system tokens — copied VERBATIM; do not edit token values
+    └── app.css          # Application styles built on top of the tokens
+
+public/fonts/         # Archivo (variable woff2), vendored locally — no external font CDN
+docs/                 # Clinical sources of truth (see §7) — spec, parameters, reference engine, prototype
 ```
 
-**The load-bearing rule:** clinical truth lives in **`src/logic/dosing.ts`** and nowhere else. UI, config, and styles are presentation and tuning around that core.
+**The load-bearing rule:** clinical truth lives in **`src/logic/dosing.ts`** and nowhere else. `model.ts`, `config.ts`, the UI, and styles are glue, tuning, and presentation around that core.
 
 ---
 
 ## 3. Key conventions
 
-These are the conventions that make the codebase safe and consistent. Follow them exactly.
+Follow these exactly — they are what make the codebase safe and consistent.
 
 ### Clinical logic — `src/logic/dosing.ts`
-- Every rule is a **pure function**: no I/O, no side effects, deterministic output for a given input. This keeps clinical logic unit-testable and reviewable in isolation.
-- **Each rule cites its source page** in a comment (guideline + page/section). No dosing constant, threshold, or formula lands without a citation. If you can't cite it, don't hard-code it.
-- Keep UI concerns out of this file — it returns numbers/structured results, not formatted strings or JSX.
+- Every rule is a **pure function**: no I/O, no side effects, deterministic. It returns numbers/structured results, never formatted strings or JSX.
+- **Each rule cites its source** in a comment (guideline + section). No dosing constant, threshold, or formula lands without a citation. If you can't cite it, don't hard-code it.
+- Rounding uses **`pyRound` (round-half-to-even)** to reproduce the verified reference engine and the published worked examples exactly (e.g. VB24's printed bedtime NPH of 10 = `round(10.5)` under half-even). Use it for every dose rounding; do not use `Math.round` for clinical values.
+- **Source conflicts are configuration, not silent choices.** The spec (§14) enumerates conflicts C-01…C-21. They surface as `Config` switches or explicit policy gaps — e.g. C-02 (`tddSchedule`), C-14 (CSII basal uses *total daily basal ÷ 24*, pinned by test), C-15 (intrapartum 80–99 band throws `UnresolvedPolicyGap`), C-13 (postpartum returns all methods, never auto-picks).
+- **Hard stops are blocking, not advisory** (spec §15): e.g. `uc23FixedCorrection` throws `HardStopError` off-label.
+
+### Glue — `src/model.ts`
+- Converts inputs (unit → kg, height → DBW) and **delegates all dose math to `dosing.ts`**. Never add a threshold or formula here.
 
 ### Configuration — `src/config.ts`
-- Holds the **tunable knobs**: starting insulin unit, titration step size, and the **demo prefill** values used to populate inputs for demonstration.
-- Change behavior by editing config, not by scattering magic numbers through the UI.
+- Holds tunable knobs: TDD schedule options, titration step, dose rounding, unresolved-policy defaults, and the **synthetic demo prefill**. Change behavior here, not with magic numbers in the UI. `DEMO_PREFILL` is the only patient-shaped data in the repo and is entirely synthetic.
 
 ### App shell — `src/App.tsx`
-- Owns **patient inputs**, the **TDD banner**, and **tab routing**. It wires inputs → `dosing.ts` → the active tab; it does not contain clinical rules itself.
+- Owns patient inputs, the TDD banner, and tab routing. Wires inputs → `model.ts`/`dosing.ts` → the active tab. Contains no clinical rules itself.
 
 ### UI — `src/ui/`
-- **One component per tab**, plus **shared controls**. Components render results from `dosing.ts`; they must not re-implement clinical math.
+- **One component per tab**, plus shared controls in `controls.tsx`. Components render results from `dosing.ts`; they must not re-implement clinical math. Every dose displayed shows its input, source, and (where relevant) the intermediate arithmetic — a spec §0 mitigation.
 
 ### Styles — `src/styles/`
-- `modernist.css` contains **design tokens copied verbatim** — do **not** alter token values; treat them as vendored design output.
-- Put app-specific styling in `app.css`, layered on top of the tokens.
+- `modernist.css` are **design tokens copied verbatim** from the prototype — do **not** alter token values (colors, spacing, radius=0, Archivo). App-specific styling goes in `app.css`.
 
 ### Fonts — `public/fonts/`
-- **Archivo is vendored locally.** Do not add external font CDNs or `@import` from the network — reference the local files so the app stays self-contained.
+- **Archivo is vendored locally** (variable woff2, one file per unicode subset). Do not add external font CDNs or network `@import`.
 
 ---
 
 ## 4. Development environment & commands
 
-Standard React + TypeScript tooling. Once `package.json` is committed, record the exact scripts here and remove this note:
+Standard React + TypeScript + Vite tooling.
 
 | Purpose | Command |
 |---------|---------|
-| Install dependencies | `npm install` _(confirm once manifest lands)_ |
-| Run dev server | `npm run dev` _(TBD — record actual script)_ |
-| Build | `npm run build` _(TBD)_ |
-| Test | _TBD — add a runner (e.g. Vitest) and test `dosing.ts` first_ |
-| Lint / format | _TBD — record actual commands_ |
+| Install dependencies | `npm install` |
+| Run dev server | `npm run dev` |
+| Build (typecheck + bundle) | `npm run build` |
+| Preview the production build | `npm run preview` |
+| **Test (run once)** | `npm test` — Vitest |
+| Test (watch) | `npm run test:watch` |
+| Typecheck only | `npm run typecheck` |
+| Lint | `npm run lint` _(ESLint not yet configured — placeholder script)_ |
 
-**Test `dosing.ts` before anything else.** Because the clinical rules are pure functions, they are the highest-value and easiest thing to unit-test; prioritize coverage there.
+**Test `dosing.ts` before anything else.** The clinical rules are pure functions and the highest-value thing to cover; `dosing.test.ts` mirrors the reference engine's regression suite and the spec's §16 test vectors. Keep it green and extend it whenever you touch the engine.
 
 ---
 
 ## 5. Git & contribution workflow
 
-- **Feature branches:** short, descriptive names, e.g. `claude/<topic>-<id>`.
+- **Feature branches:** short, descriptive, e.g. `claude/<topic>-<id>`.
 - **Commits:** imperative mood, explain *why*; keep them focused.
 - **Push:** `git push -u origin <branch-name>`.
 - **Pull requests:** open one only when explicitly requested; mirror any `.github/` template.
-- **Never commit secrets or patient data**, and keep a `.gitignore` covering `node_modules/`, build output, and `.env` files.
+- **Never commit secrets or patient data.** `.gitignore` covers `node_modules/`, `dist/`, and `.env*`.
 
 ---
 
@@ -92,24 +117,31 @@ Standard React + TypeScript tooling. Once `package.json` is committed, record th
 
 Insulin is a high-alert medication where dosing errors cause serious harm. Hold contributions to a correspondingly high bar:
 
-- **No dosing logic without a cited source.** This is enforced by convention in `dosing.ts` — every rule references its guideline page. Preserve that discipline in every change.
-- **Make units and context explicit.** mg/dL vs mmol/L, gestational context, and target ranges must be unambiguous in both code and UI.
-- **Treat all patient-related data as PHI.** Never commit real patient data or identifiers. The only patient-shaped data in the repo is the synthetic **demo prefill** in `config.ts`.
-- **Fail safe.** Validate inputs; prefer clear error states over silent computation on missing or out-of-range glucose/insulin values.
+- **Not a validated device.** Decision support only. Every dose output requires explicit clinician confirmation; no module auto-executes or writes to an EMR/pump. Always display the input, formula, source, and intermediate arithmetic alongside every output (spec §0).
+- **No dosing logic without a cited source** — enforced by convention in `dosing.ts`. Preserve it in every change.
+- **Make units and context explicit.** mg/dL vs mmol/L, gestational context, and target ranges must be unambiguous in code and UI.
+- **Treat all patient-related data as PHI.** Never commit real patient data or identifiers. The only patient-shaped data is the synthetic `DEMO_PREFILL` in `config.ts`.
+- **Fail safe.** Validate inputs; prefer clear error/empty states and blocking hard stops over silent computation on missing or out-of-range values.
 
 ---
 
-## 7. Domain references available in this environment
+## 7. Clinical sources (vendored under `docs/`)
 
-For grounding clinical accuracy (via MCP) — use these rather than memory for clinical facts, and cite what informs `dosing.ts`:
+The engine is compiled from four sources only; each numeric parameter carries a source tag.
 
-- **PubMed** — biomedical literature.
-- **ClinicalTrials.gov** — trial protocols and endpoints.
-- **ICD-10 (CM/PCS)** — diagnosis/procedure codes (e.g. `O24.*`, diabetes in pregnancy).
-- **Consensus / Scholar Gateway** — research-question search across the literature.
+| File | What it is |
+|------|-----------|
+| `docs/PREGNANCY_INSULIN_ALGORITHMS.md` | The full machine-consumable spec (§0 safety, §14 conflict registry, §15 hard stops, §16 test vectors, §17 build order). The authority for how `dosing.ts` should behave. |
+| `docs/insulin_parameters.json` | Every parameter, policy switch, target table, and hard stop as data. |
+| `docs/dosing_engine_reference.py` | The verified reference arithmetic + regression suite that `dosing.ts` and `dosing.test.ts` are ported from. |
+| `docs/Insulin_Rx_prototype.html` | The self-contained design/UX prototype — origin of the modernist design system, the vendored Archivo fonts, and the five-tab layout. |
+
+Source precedence (spec §1): targets/monitoring **ADA26 > ES25 > VB24 > UC23**; MDI initiation/titration **VB24 > UC23**; CSII **UC23** (sole); AID **ES25 + ADA26**. Full citations live in `docs/insulin_parameters.json → sources`.
+
+For grounding new clinical facts (via MCP), prefer **PubMed**, **ClinicalTrials.gov**, **ICD-10 (CM/PCS)**, and **Consensus / Scholar Gateway** over memory, and cite what informs `dosing.ts`.
 
 ---
 
-## 8. Keeping this document useful
+## 8. Build order & what's next
 
-The **code is the source of truth.** On every substantive change, update the section here that it affects — layout (§2), conventions (§3), or commands (§4) — and remove any "TBD"/"not yet committed" marker as each item becomes real. If this file contradicts the code, fix this file.
+Per the spec's suggested order (§17), implemented so far: data/target service, the TDD/initiation calculator with the C-02 switch, pattern titration, the fixed/calculated correction, CSII (C-14), and the intrapartum table (C-15 gap surfaced). **Not yet built:** CGM adapter (§6), a first-class Hypoglycemia module (§12), Postpartum (§13) UI, Steroids (§9), DKA reference (§10), and AID (§8). See spec §18 for clinical gaps the four sources do not cover.

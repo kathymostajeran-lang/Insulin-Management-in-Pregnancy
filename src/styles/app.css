@@ -1,0 +1,112 @@
+/* app.css — application layout and view styling, layered on the modernist
+ * design tokens (see modernist.css). Utility classes .num/.mono/.kick/.sect/
+ * .dtab are carried over verbatim from the prototype; everything else is the
+ * React app shell (banner, tabs, input rail, result surfaces). */
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--color-bg);
+  font-family: var(--font-body);
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+/* Numbers that must line up in columns and read as "output". */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.mono { font-variant-numeric: tabular-nums; }
+.kick {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  margin: 0;
+}
+.sect { padding: 16px 20px 18px; border-bottom: 2px solid var(--color-divider); }
+
+/* Dense data tables (dosing scales / algorithm bands). */
+.dtab { border-collapse: collapse; width: 100%; font-size: 14px; }
+.dtab th {
+  text-align: left; font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+  padding: 6px 8px; border-bottom: 2px solid var(--color-divider); font-weight: 400;
+}
+.dtab td { padding: 9px 8px; border-bottom: 1px solid var(--color-divider); }
+.dtab tr[data-active="true"] td {
+  background: var(--color-accent-100);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+/* ── App shell ─────────────────────────────────────────────────────── */
+.app { max-width: 960px; margin: 0 auto; min-height: 100vh; background: var(--color-bg); }
+
+.app-header { padding: var(--space-4) var(--space-4) var(--space-2); }
+.app-title { font-size: 26px; margin: 0; }
+.app-sub { font-size: 13px; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+
+/* Tabs (Start · Correct · Labor · Adjust · Pump) */
+.tabs {
+  display: flex; gap: 2px; padding: 0 var(--space-4);
+  border-bottom: 2px solid var(--color-divider);
+  overflow-x: auto;
+}
+.tab {
+  appearance: none; background: transparent; border: 0; cursor: pointer;
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 14px; color: color-mix(in srgb, var(--color-text) 60%, transparent);
+  padding: var(--space-3) var(--space-3); border-bottom: 2px solid transparent;
+  margin-bottom: -2px; white-space: nowrap;
+}
+.tab:hover { color: var(--color-text); }
+.tab[aria-selected="true"] { color: var(--color-accent); border-bottom-color: var(--color-accent); }
+
+.view { padding: var(--space-4); display: grid; gap: var(--space-4); }
+
+/* Input rail */
+.rail { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); }
+
+/* TDD banner — the persistent output shown across tabs */
+.banner {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface); border: 1px solid var(--color-divider);
+}
+.banner-value { font-size: 34px; line-height: 1; }
+.banner-unit { font-size: 14px; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+.banner-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-accent); }
+.banner-derivation { font-size: 12px; color: color-mix(in srgb, var(--color-text) 60%, transparent); flex-basis: 100%; }
+.banner--empty .banner-value { color: color-mix(in srgb, var(--color-text) 35%, transparent); }
+
+/* Result rows (When / Insulin / Units schedule) */
+.rows { display: grid; gap: 0; }
+.row {
+  display: grid; grid-template-columns: 1fr auto auto; gap: var(--space-3);
+  align-items: baseline; padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-divider);
+}
+.row-when { font-size: 14px; }
+.row-agent { font-size: 12px; color: color-mix(in srgb, var(--color-text) 60%, transparent); }
+.row-units { font-size: 18px; }
+
+/* Alerts / hard-stops */
+.alert {
+  padding: var(--space-3); border: 1px solid var(--color-accent);
+  background: var(--color-accent-100); color: var(--color-accent-900); font-size: 13px;
+}
+.alert-title { font-family: var(--font-heading); font-weight: 800; margin-bottom: 4px; }
+.stop { border-color: var(--color-accent-700); }
+
+/* Source citation chips */
+.cite { font-size: 11px; color: color-mix(in srgb, var(--color-text) 50%, transparent); }
+
+/* Safety footer */
+.safety {
+  margin: var(--space-6) var(--space-4) var(--space-8);
+  padding: var(--space-3); border-top: 2px solid var(--color-divider);
+  font-size: 12px; color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
