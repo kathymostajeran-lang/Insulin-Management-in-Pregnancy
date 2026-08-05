@@ -378,7 +378,7 @@ describe("DKA module (§10)", () => {
   });
 });
 
-describe("Yale insulin infusion protocol", () => {
+describe("Yale insulin infusion protocol (published protocol)", () => {
   it("rate-dependent delta table", () => {
     expect(yaleDelta(2)).toBe(0.5);
     expect(yaleDelta(4)).toBe(1);
@@ -389,50 +389,74 @@ describe("Yale insulin infusion protocol", () => {
     expect(yaleDelta(25)).toBe(5);
   });
 
-  it("initiation: BG<180 → 0.5 u/hr; 180–299 → BG/100; ≥300 → bolus + infusion", () => {
-    const a = yaleInsulinInfusion({ currentBs: 150, previousBs: 0, hoursSincePrevious: 1, currentRate: 0 });
+  it("initiation: bolus = initial rate = BG/100 rounded to 0.5 (protocol examples)", () => {
+    const a = yaleInsulinInfusion({ currentBs: 174, previousBs: 0, hoursSincePrevious: 1, currentRate: 0 });
     expect(a.kind).toBe("INITIATE");
-    expect(a.newRate).toBe(0.5);
-    expect(a.bolusUnits).toBe(0);
-    expect(yaleInsulinInfusion({ currentBs: 200, previousBs: 0, hoursSincePrevious: 1, currentRate: 0 }).newRate).toBe(2.0);
-    const c = yaleInsulinInfusion({ currentBs: 350, previousBs: 0, hoursSincePrevious: 1, currentRate: 0 });
-    expect(c.newRate).toBe(4);
-    expect(c.bolusUnits).toBe(4);
+    expect(a.newRate).toBe(1.5); // 1.74 → 1.5
+    expect(a.bolusUnits).toBe(1.5);
+    const b = yaleInsulinInfusion({ currentBs: 325, previousBs: 0, hoursSincePrevious: 1, currentRate: 0 });
+    expect(b.newRate).toBe(3.5); // 3.25 → 3.5
+    expect(b.bolusUnits).toBe(3.5);
+    expect(yaleInsulinInfusion({ currentBs: 520, previousBs: 0, hoursSincePrevious: 1, currentRate: 0 }).warning).toBe("BG ≥ 500 — consult MD");
   });
 
-  it("maintenance: rising in 180–249 increases by 1×delta", () => {
-    const r = yaleInsulinInfusion({ currentBs: 200, previousBs: 170, hoursSincePrevious: 1, currentRate: 4 });
-    expect(r.kind).toBe("SET_RATE");
-    expect(r.bsChangePerHr).toBe(30);
-    expect(r.finalDelta).toBe(1);
-    expect(r.newRate).toBe(5);
-  });
-
-  it("maintenance: in-band stable → no change", () => {
-    const r = yaleInsulinInfusion({ currentBs: 160, previousBs: 155, hoursSincePrevious: 1, currentRate: 2 });
+  it("target column 100–139 stable → no change", () => {
+    const r = yaleInsulinInfusion({ currentBs: 120, previousBs: 118, hoursSincePrevious: 1, currentRate: 2 });
     expect(r.finalDelta).toBe(0);
     expect(r.newRate).toBe(2);
   });
 
-  it("large drop → hold 30 min then reduce by 2×delta", () => {
-    const r = yaleInsulinInfusion({ currentBs: 120, previousBs: 150, hoursSincePrevious: 1, currentRate: 6 });
-    expect(r.kind).toBe("HOLD_THEN_SET");
-    expect(r.holdMinutes).toBe(30);
-    expect(r.newRate).toBe(4); // 6 + (-2 × 1)
+  it("column ≥200 rising → up by 2Δ", () => {
+    const r = yaleInsulinInfusion({ currentBs: 260, previousBs: 250, hoursSincePrevious: 1, currentRate: 4 });
+    expect(r.bsChangePerHr).toBe(10);
+    expect(r.finalDelta).toBe(2); // +2 × delta(4)=1
+    expect(r.newRate).toBe(6);
   });
 
-  it("high rate + big increase flags Consult MD (finalDelta 10)", () => {
+  it("column 140–199 falling within range → no change", () => {
+    const r = yaleInsulinInfusion({ currentBs: 160, previousBs: 205, hoursSincePrevious: 1, currentRate: 5 });
+    expect(r.finalDelta).toBe(0); // ↓45 in the −1..−50 no-change cell
+    expect(r.newRate).toBe(5);
+  });
+
+  it("target column large drop → hold 30 min then ↓2Δ", () => {
+    const r = yaleInsulinInfusion({ currentBs: 120, previousBs: 200, hoursSincePrevious: 1, currentRate: 6 });
+    expect(r.kind).toBe("HOLD_THEN_SET");
+    expect(r.holdMinutes).toBe(30);
+    expect(r.newRate).toBe(4); // 6 + (−2 × 1)
+  });
+
+  it("2Δ at rate ≥25 flags consult MD", () => {
     const r = yaleInsulinInfusion({ currentBs: 260, previousBs: 250, hoursSincePrevious: 1, currentRate: 25 });
     expect(r.finalDelta).toBe(10);
     expect(r.newRate).toBe(35);
-    expect(r.warning).toBe("Consult MD");
+    expect(r.warning).toBe("2Δ = 10 — consult MD");
   });
 
-  it("hypoglycemia rescue rungs (<50 / 50–69 / 70–99)", () => {
-    expect(yaleInsulinInfusion({ currentBs: 45, previousBs: 120, hoursSincePrevious: 1, currentRate: 4 }).kind).toBe("RESCUE");
-    expect(yaleInsulinInfusion({ currentBs: 60, previousBs: 120, hoursSincePrevious: 1, currentRate: 4 }).restartRate).toBe(3); // 75% of 4
-    expect(yaleInsulinInfusion({ currentBs: 45, previousBs: 120, hoursSincePrevious: 1, currentRate: 4 }).restartRate).toBe(2); // 50% of 4
-    expect(yaleInsulinInfusion({ currentBs: 85, previousBs: 120, hoursSincePrevious: 1, currentRate: 4 }).warning).toBe("Hypoglycemia");
+  it("hourly rate of change accounts for the interval", () => {
+    // BG 150 → 120 over 2 h = −15 mg/dL/hr (not −30)
+    const r = yaleInsulinInfusion({ currentBs: 120, previousBs: 150, hoursSincePrevious: 2, currentRate: 4 });
+    expect(r.bsChangePerHr).toBe(-15); // 100–139 column, −15 within ±25 → no change
+    expect(r.finalDelta).toBe(0);
+  });
+
+  it("hypoglycemia rescue: <50 restart 50%, 50–74 restart 75%", () => {
+    const lo = yaleInsulinInfusion({ currentBs: 45, previousBs: 120, hoursSincePrevious: 1, currentRate: 4 });
+    expect(lo.kind).toBe("RESCUE");
+    expect(lo.restartRate).toBe(2); // 50% of 4
+    const mid = yaleInsulinInfusion({ currentBs: 60, previousBs: 120, hoursSincePrevious: 1, currentRate: 4 });
+    expect(mid.restartRate).toBe(3); // 75% of 4
+  });
+
+  it("column 75–99 rapid fall (↓>25) → D/C, restart 75%", () => {
+    const r = yaleInsulinInfusion({ currentBs: 90, previousBs: 130, hoursSincePrevious: 1, currentRate: 4 });
+    expect(r.kind).toBe("RESCUE");
+    expect(r.instruction).toContain("D/C");
+    expect(r.restartRate).toBe(3); // 75% of 4
+    // 75–99 mild fall → ↓Δ
+    expect(yaleInsulinInfusion({ currentBs: 90, previousBs: 100, hoursSincePrevious: 1, currentRate: 4 }).newRate).toBe(3);
+    // 75–99 rising → no change
+    expect(yaleInsulinInfusion({ currentBs: 90, previousBs: 80, hoursSincePrevious: 1, currentRate: 4 }).newRate).toBe(4);
   });
 });
 

@@ -882,12 +882,12 @@ export function dkaIcuCriteria(opts: {
 }
 
 // ── Yale insulin infusion protocol (IV drip) ────────────────────────────────
-// Ported faithfully from "Insulin IP Calc v2.4" © 2015–2023 John George K.
-// (LGPL v3), the user's Yale_infusion_calculator repo. Target band 140–180
-// mg/dL. Dynamic: the rate change is driven by the current BG AND its hourly
-// rate of change, scaled by a rate-dependent delta. NOT pregnancy-specific — a
-// general critical-care protocol; used here as the DKA drip engine at the
-// user's request. Decision support only; every rate requires confirmation.
+// Transcribed directly from the published Yale Insulin Infusion Protocol (the
+// image the user provided). Target band 100–139 mg/dL. Dynamic: the rate change
+// is driven by the CURRENT BG column and the HOURLY rate of change, scaled by a
+// rate-dependent delta. General critical-care, ICU protocol — NOT specifically
+// tailored for DKA/HHS; the protocol itself says to consult MD when DKA is
+// considered or when BG ≥ 500. Decision support only; confirm every rate.
 export type YaleActionKind = "INITIATE" | "SET_RATE" | "HOLD_THEN_SET" | "RESCUE";
 
 export interface YaleInput {
@@ -900,19 +900,20 @@ export interface YaleInput {
 export interface YaleResult {
   kind: YaleActionKind;
   newRate: number | null; // resulting infusion rate (units/hr)
-  bolusUnits: number | null; // initiation bolus, if any
-  bsChangePerHr: number | null; // computed rate of change
+  bolusUnits: number | null; // initiation bolus (= initial rate), if any
+  bsChangePerHr: number | null; // computed hourly rate of change
   delta: number | null; // delta magnitude from the rate table
   finalDelta: number | null; // signed rate change applied
-  holdMinutes: number | null; // hold before resuming (Reduce2 / rescue)
-  restartRate: number | null; // suggested restart rate after rescue
+  holdMinutes: number | null; // hold before resuming
+  restartRate: number | null; // suggested restart rate after a D/C
   instruction: string;
   warning: string | null;
 }
 
-const round05 = (x: number) => Math.round(x * 2) / 2; // nearest 0.5
+const round05 = (x: number) => Math.round(x * 2) / 2; // nearest 0.5 (half up)
+const YALE_TARGET: [number, number] = [100, 139];
 
-/** Yale delta: the adjustment unit, scaled to the current infusion rate. */
+/** Yale delta (Δ): the adjustment unit, scaled to the current infusion rate. */
 export function yaleDelta(rate: number): number {
   if (rate < 3) return 0.5;
   if (rate < 6.5) return 1;
@@ -923,56 +924,60 @@ export function yaleDelta(rate: number): number {
   return 5;
 }
 
+/**
+ * Initiation: bolus AND initial infusion rate = BG ÷ 100, rounded to the nearest
+ * 0.5 U. The bolus equals the starting rate (e.g. BG 174 → 1.5 U bolus + 1.5
+ * U/hr; BG 325 → 3.5 + 3.5).
+ */
 function yaleInitiate(cur: number): YaleResult {
-  const base = { kind: "INITIATE" as const, bsChangePerHr: null, delta: null, finalDelta: null, holdMinutes: null, restartRate: null, warning: null };
-  if (cur >= 100 && cur < 180) {
-    return { ...base, newRate: 0.5, bolusUnits: 0, instruction: "Start infusion at 0.5 units/hr. Do not bolus." };
-  }
-  if (cur >= 180 && cur < 300) {
-    const rate = round05((cur / 100) * 2) / 2; // BG/100 rounded to nearest 0.5
-    return { ...base, newRate: rate, bolusUnits: 0, instruction: `Start infusion at ${rate} units/hr (BG ÷ 100). Do not bolus.` };
-  }
-  // cur >= 300
-  const b = Math.round(cur / 100); // nearest 1 unit
-  return { ...base, newRate: b, bolusUnits: b, instruction: `Give ${b} units IV bolus and start infusion at ${b} units/hr (BG ÷ 100).` };
+  const rate = round05(cur / 100);
+  return {
+    kind: "INITIATE",
+    newRate: rate,
+    bolusUnits: rate,
+    bsChangePerHr: null,
+    delta: null,
+    finalDelta: null,
+    holdMinutes: null,
+    restartRate: null,
+    instruction: `IV bolus ${rate} units, then start the infusion at ${rate} units/hr (BG ÷ 100, rounded to 0.5).`,
+    warning: cur >= 500 ? "BG ≥ 500 — consult MD" : null,
+  };
 }
 
-function yaleRescue(level: 1 | 2 | 3, rate: number): YaleResult {
-  const base = { kind: "RESCUE" as const, newRate: null, bolusUnits: null, delta: null, finalDelta: null, warning: "Hypoglycemia" };
-  if (level === 1) {
+/** Hypoglycemia rescue bands: BG < 50 (restart 50%) and BG 50–74 (restart 75%). */
+function yaleRescue(band: "lt50" | "50to74", rate: number): YaleResult {
+  const base = {
+    kind: "RESCUE" as const,
+    newRate: null,
+    bolusUnits: null,
+    bsChangePerHr: null,
+    delta: null,
+    finalDelta: null,
+    warning: "Hypoglycemia" as const,
+  };
+  if (band === "lt50") {
     return {
       ...base,
-      bsChangePerHr: null,
       holdMinutes: 15,
       restartRate: round05(rate * 0.5),
       instruction:
-        "STOP the insulin infusion. Give 1 amp (25 g) D50 IV; recheck BG q15 min until ≥ 100 mg/dL (give another 25 g D50 if BG < 70). Recheck at 1 h; if ≥ 100, restart at 50% of the most recent rate.",
-    };
-  }
-  if (level === 2) {
-    return {
-      ...base,
-      bsChangePerHr: null,
-      holdMinutes: 15,
-      restartRate: round05(rate * 0.75),
-      instruction:
-        "STOP the insulin infusion. Give ½ amp (12.5 g) D50 IV; recheck BG q15 min until ≥ 100 mg/dL (give another 12.5 g D50 if BG < 70). Recheck at 1 h; if ≥ 100, restart at 75% of the most recent rate.",
+        "D/C the insulin infusion. Give 1 amp (25 g) D50 IV; recheck BG q15 min. When BG ≥ 100 mg/dL, wait 1 h, then restart at 50% of the original rate.",
     };
   }
   return {
     ...base,
-    bsChangePerHr: null,
-    holdMinutes: 30,
+    holdMinutes: 15,
     restartRate: round05(rate * 0.75),
     instruction:
-      "STOP the insulin infusion. Recheck BG q30 min until ≥ 100 mg/dL (give 12.5 g D50 if BG < 70). Restart at 75% of the most recent rate; resume BG checks q1h.",
+      "D/C the insulin infusion. If symptomatic (or unable to assess), give 1 amp (25 g) D50 IV; if asymptomatic, give ½ amp (12.5 g) D50 IV or 8 oz juice. Recheck BG q15–30 min. When BG ≥ 100 mg/dL, wait 1 h, then restart at 75% of the original rate.",
   };
 }
 
 /**
- * Yale IV insulin infusion recommendation. Returns the next action: initiation,
- * a new rate (with the signed delta), a hold-then-set for large drops, or a
- * hypoglycemia rescue. Target band 140–180 mg/dL.
+ * Yale IV insulin infusion recommendation, matching the published protocol:
+ * initiation (bolus = rate = BG/100), the hypoglycemia rescue bands, and the
+ * "Changing the Infusion Rate" table (current-BG column × hourly-change cell).
  */
 export function yaleInsulinInfusion(input: YaleInput): YaleResult {
   const cur = input.currentBs;
@@ -983,48 +988,67 @@ export function yaleInsulinInfusion(input: YaleInput): YaleResult {
   // Initiation: no prior value or not yet infusing, and BG ≥ 100.
   if ((prev === 0 || rate === 0) && cur >= 100) return yaleInitiate(cur);
 
-  const bsChange = (cur - prev) / time;
+  // Hypoglycemia rescue (BG < 75).
+  if (cur < 50) return yaleRescue("lt50", rate);
+  if (cur < 75) return yaleRescue("50to74", rate);
 
-  // Hypoglycemia rescue.
-  if (cur < 50) return yaleRescue(1, rate);
-  if (cur <= 69) return yaleRescue(2, rate);
-  if (cur <= 99) return yaleRescue(3, rate);
-
-  // Maintenance (target 140–180): pick the signed multiple of delta.
+  const bsChange = (cur - prev) / time; // hourly rate of change (mg/dL/hr)
   const delta = yaleDelta(rate);
-  let mult: number; // multiples of delta: +2,+1,0,-1,-2
-  let hold = false;
 
-  if (cur <= 139) {
-    // Range 1: 100–139
-    if (bsChange >= 0) mult = 0;
-    else if (bsChange >= -20) mult = -1;
-    else { mult = -2; hold = true; }
-  } else if (cur <= 179) {
-    // Range 2: 140–179
-    if (bsChange > 20) mult = 1;
-    else if (bsChange >= -20) mult = 0;
-    else if (bsChange >= -40) mult = -1;
-    else { mult = -2; hold = true; }
-  } else if (cur <= 249) {
-    // Range 3: 180–249
-    if (bsChange >= 40) mult = 2;
-    else if (bsChange >= 0) mult = 1;
-    else if (bsChange >= -40) mult = 0;
-    else if (bsChange >= -80) mult = -1;
-    else { mult = -2; hold = true; }
+  // "Changing the Infusion Rate" table: column by current BG, cell by hourly
+  // change → a signed multiple of Δ (or HOLD, or a D/C in the 75–99 tail cell).
+  let mult: number; // −2, −1, 0, +1, +2 (× delta)
+  let hold = false;
+  let dc = false;
+
+  if (cur <= 99) {
+    // Column BG 75–99
+    if (bsChange > 0) mult = 0; // BG ↑ → no change
+    else if (bsChange >= -25) mult = -1; // unchanged / ↓1–25 → ↓Δ
+    else { mult = 0; dc = true; } // ↓ > 25 → D/C, restart 75%
+  } else if (cur <= 139) {
+    // Column BG 100–139 (target)
+    if (bsChange > 25) mult = 1; // ↑ > 25 → ↑Δ
+    else if (bsChange >= -25) mult = 0; // ↑1–25 / unchanged / ↓1–25 → no change
+    else if (bsChange >= -50) mult = -1; // ↓26–50 → ↓Δ
+    else { mult = -2; hold = true; } // ↓ > 50 → HOLD, then ↓2Δ
+  } else if (cur <= 199) {
+    // Column BG 140–199
+    if (bsChange > 50) mult = 2; // ↑ > 50 → ↑2Δ
+    else if (bsChange >= 0) mult = 1; // ↑1–50 / unchanged → ↑Δ
+    else if (bsChange >= -50) mult = 0; // ↓1–50 → no change
+    else if (bsChange >= -75) mult = -1; // ↓51–75 → ↓Δ
+    else { mult = -2; hold = true; } // ↓ > 75 → HOLD, then ↓2Δ
   } else {
-    // Range 4: ≥ 250
-    if (bsChange > 0) mult = 2;
-    else if (bsChange >= -40) mult = 1;
-    else if (bsChange >= -80) mult = 0;
-    else if (bsChange >= -120) mult = -1;
-    else { mult = -2; hold = true; }
+    // Column BG ≥ 200
+    if (bsChange > 0) mult = 2; // BG ↑ → ↑2Δ
+    else if (bsChange >= -25) mult = 1; // unchanged / ↓1–25 → ↑Δ
+    else if (bsChange >= -75) mult = 0; // ↓26–75 → no change
+    else if (bsChange >= -100) mult = -1; // ↓76–100 → ↓Δ
+    else { mult = -2; hold = true; } // ↓ > 100 → HOLD, then ↓2Δ
+  }
+
+  // 75–99 tail: D/C, VBG q30, restart at 75% when BG ≥ 100.
+  if (dc) {
+    return {
+      kind: "RESCUE",
+      newRate: null,
+      bolusUnits: null,
+      bsChangePerHr: bsChange,
+      delta,
+      finalDelta: null,
+      holdMinutes: 30,
+      restartRate: round05(rate * 0.75),
+      instruction:
+        "D/C the insulin infusion; recheck VBG q30 min. When BG ≥ 100 mg/dL, restart at 75% of the most recent rate.",
+      warning: "Rapid fall near target",
+    };
   }
 
   const finalDelta = mult * delta;
   const newRate = Math.max(0, rate + finalDelta);
-  const warning = finalDelta === 10 ? "Consult MD" : null;
+  const warning =
+    finalDelta === 10 ? "2Δ = 10 — consult MD" : cur >= 500 ? "BG ≥ 500 — consult MD" : null;
 
   if (hold) {
     return {
@@ -1036,12 +1060,12 @@ export function yaleInsulinInfusion(input: YaleInput): YaleResult {
       finalDelta,
       holdMinutes: 30,
       restartRate: null,
-      instruction: `Large BG drop — HOLD the infusion for 30 min, then set at ${newRate} units/hr (reduce by 2 × delta).`,
+      instruction: `HOLD the infusion for 30 min, then set at ${newRate} units/hr (↓ by 2Δ).`,
       warning,
     };
   }
 
-  const verb = finalDelta === 0 ? "No rate change — continue at" : finalDelta > 0 ? "Increase to" : "Decrease to";
+  const verb = finalDelta === 0 ? "No change — continue at" : finalDelta > 0 ? "Increase to" : "Decrease to";
   return {
     kind: "SET_RATE",
     newRate,
@@ -1055,6 +1079,15 @@ export function yaleInsulinInfusion(input: YaleInput): YaleResult {
     warning,
   };
 }
+
+/** Yale protocol constants for display (from the published protocol). */
+export const YALE = {
+  target: YALE_TARGET,
+  mix: "1 U regular insulin per 1 mL 0.9% NaCl",
+  primeMl: 50,
+  incrementUHr: 0.5,
+  consultIfBgGte: 500,
+} as const;
 
 // ── §12 Hypoglycemia (Module J) ─────────────────────────────────────────────
 // Threshold is C-01: ADA26 <70 meter / <63 sensor (default), UC23 <60, VB24

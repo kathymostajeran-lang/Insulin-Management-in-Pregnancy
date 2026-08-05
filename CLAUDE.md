@@ -41,7 +41,7 @@ src/
 │   ├── AdjustTab.tsx    # Pattern-based SMBG titration (+ 20% TDD cap)
 │   ├── HypoTab.tsx      # Hypoglycemia threshold (C-01), Rule of 15, rescue ladder
 │   ├── SteroidsTab.tsx  # Betamethasone insulin adjustment (Mathiesen day-by-day) (§9)
-│   ├── DkaTab.tsx       # DKA: Yale IV insulin drip (strict, no routine bolus) + UC23 fluids/K (§10, HS-14)
+│   ├── DkaTab.tsx       # DKA: Yale IV insulin drip (published protocol, target 100–139) + UC23 fluids/K (§10)
 │   ├── CgmTab.tsx       # CGM scorecard + tagged-value handoff (HS-09/10/11 guards)
 │   ├── PumpTab.tsx      # CSII initiation (C-14 resolved)
 │   └── PostpartumTab.tsx # Immediate PP dose options, all methods shown (C-13)
@@ -145,7 +145,7 @@ Source precedence (spec §1): targets/monitoring **ADA26 > ES25 > VB24 > UC23**;
 
 **Sources beyond the original four (both user-requested, both cited):**
 1. **Mathiesen ER algorithm** (perinatology.com) — the Steroids module's betamethasone insulin adjustment. Pregnancy-specific. Cited via `MATHIESEN.source` in `dosing.ts`.
-2. **Yale insulin infusion protocol** — the DKA IV insulin drip. Ported from *Insulin IP Calc v2.4*, © John George K., **LGPL v3** (the user's `Yale_infusion_calculator` repo). This is a **general critical-care** protocol (target 140–180 mg/dL), **not pregnancy-specific** — the DKA tab flags this in the UI. The port carries attribution in the `dosing.ts` Yale header comment; being LGPL, keep that attribution and the upstream LICENSE.
+2. **Yale insulin infusion protocol** — the DKA IV insulin drip. Transcribed directly from the **published Yale Insulin Infusion Protocol** (target **100–139 mg/dL**; initiation bolus = initial rate = BG ÷ 100 rounded to 0.5; the "Changing the Infusion Rate" table keyed on current-BG column × hourly rate of change; Δ scaled to the running rate). It is a **general critical-care ICU** protocol, **not pregnancy-specific and not tailored for DKA/HHS** — the tab surfaces the protocol's own "consult MD if BG ≥ 500 or DKA is considered" caveat. (An earlier version was ported from the user's LGPL `Yale_infusion_calculator`, but the engine was **rewritten to match the published protocol**, which differs materially — target band and the always-on initiation bolus.)
 
 Any further out-of-spec source must be explicitly cited and, if not pregnancy-specific, flagged as such in the UI.
 
