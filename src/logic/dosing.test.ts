@@ -47,6 +47,8 @@ import {
   dkaIcuCriteria,
   yaleInsulinInfusion,
   yaleDelta,
+  aidTargetCheck,
+  AID_SYSTEMS,
 } from "./dosing";
 
 describe("pyRound (half-to-even, matches the reference engine)", () => {
@@ -431,6 +433,20 @@ describe("Yale insulin infusion protocol", () => {
     expect(yaleInsulinInfusion({ currentBs: 60, previousBs: 120, hoursSincePrevious: 1, currentRate: 4 }).restartRate).toBe(3); // 75% of 4
     expect(yaleInsulinInfusion({ currentBs: 45, previousBs: 120, hoursSincePrevious: 1, currentRate: 4 }).restartRate).toBe(2); // 50% of 4
     expect(yaleInsulinInfusion({ currentBs: 85, previousBs: 120, hoursSincePrevious: 1, currentRate: 4 }).warning).toBe("Hypoglycemia");
+  });
+});
+
+describe("AID module (§8)", () => {
+  it("flags a system whose minimum target exceeds the pregnancy fasting range (>95)", () => {
+    expect(aidTargetCheck(81).exceedsFasting).toBe(false); // AiDAPT reaches pregnancy range
+    expect(aidTargetCheck(100).exceedsFasting).toBe(true); // CRISTAL
+    expect(aidTargetCheck(120).exceedsFasting).toBe(true); // Polsky
+    expect(aidTargetCheck(95).exceedsFasting).toBe(false); // boundary
+  });
+
+  it("only the pregnancy-specific system meets the target among the known systems", () => {
+    const meeting = AID_SYSTEMS.filter((s) => !aidTargetCheck(s.minTargetMgdl).exceedsFasting);
+    expect(meeting.map((s) => s.label)).toEqual(["AiDAPT (pregnancy-specific)"]);
   });
 });
 

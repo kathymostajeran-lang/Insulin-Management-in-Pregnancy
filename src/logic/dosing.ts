@@ -1216,6 +1216,81 @@ export function postpartumTddOptions(args: {
   return out;
 }
 
+// ── §8 AID / hybrid closed loop (Module F) ──────────────────────────────────
+// Automated Insulin Delivery — mostly display/education. The one implementation
+// rule (F.2): show each system's MINIMUM achievable target and FLAG when that
+// minimum exceeds the pregnancy fasting target range (70–95). UC23 has no AID
+// content. Do not automate "fake-carb" dosing (gate behind acknowledgment).
+export const PREGNANCY_FASTING_RANGE: [number, number] = [70, 95];
+
+export interface AidRecommendation {
+  text: string;
+  source: string;
+  grade: string;
+}
+
+export const AID_RECOMMENDATIONS: ReadonlyArray<AidRecommendation> = [
+  { text: "AID with pregnancy-specific glucose targets is recommended for pregnant T1DM", source: "ADA26 15.19", grade: "A" },
+  { text: "AID without pregnancy-specific targets may be considered for select T1DM (assistive techniques + experienced team)", source: "ADA26 15.20", grade: "B" },
+  { text: "HCL pump suggested over pump+CGM (no algorithm) or MDI+CGM in T1DM", source: "ES25 Rec 8", grade: "2 | ⊕OOO" },
+  { text: "Not all HCL algorithms are appropriate for pregnancy", source: "ES25 Rec 8", grade: "remark" },
+  { text: "Insufficient evidence for AID in T2DM pregnancy", source: "ES25", grade: "—" },
+];
+
+export interface AidSystem {
+  label: string;
+  minTargetMgdl: number;
+  note: string;
+}
+
+export const AID_SYSTEMS: ReadonlyArray<AidSystem> = [
+  { label: "AiDAPT (pregnancy-specific)", minTargetMgdl: 81, note: "81–90 from 16–20 wk (100 early); FDA-approved, not currently available in the US" },
+  { label: "CRISTAL", minTargetMgdl: 100, note: "fixed 100 mg/dL target" },
+  { label: "Polsky", minTargetMgdl: 120, note: "120 mg/dL; worse 3rd-trimester mean sensor glucose in the AID arm (132 vs 119)" },
+];
+
+export interface AidTargetCheck {
+  minTarget: number;
+  fastingUpper: number;
+  exceedsFasting: boolean;
+}
+
+/** Flag a system whose minimum achievable target sits above the pregnancy
+ *  fasting target range (i.e. it cannot reach pregnancy goals). */
+export function aidTargetCheck(minTargetMgdl: number, fastingUpper = PREGNANCY_FASTING_RANGE[1]): AidTargetCheck {
+  return { minTarget: minTargetMgdl, fastingUpper, exceedsFasting: minTargetMgdl > fastingUpper };
+}
+
+/** ADA26-named assistive techniques for non-pregnancy-target systems.
+ *  "Fake-carb" boluses must never be automated — clinician-directed only. */
+export const AID_ASSISTIVE: ReadonlyArray<string> = [
+  '"Fake carbohydrate" insulin boluses for carbohydrates not consumed',
+  "Alternating between SAP/manual mode and automated mode by time of day or stage of pregnancy",
+  "Pump management guided by an experienced interprofessional team",
+];
+
+export interface AidEffect {
+  label: string;
+  md: number; // mean difference (%) or risk ratio
+  ci: [number, number];
+  significant: boolean;
+  isRatio: boolean; // true for RR (LGA/SGA/neonatal hypo)
+}
+
+/** ES25 meta-analysis effect sizes (HCL vs standard) for counseling display. */
+export const AID_EFFECTS: ReadonlyArray<AidEffect> = [
+  { label: "24-h TIR", md: 3.81, ci: [-4.24, 11.86], significant: false, isRatio: false },
+  { label: "24-h TBR", md: -0.88, ci: [-2.04, 0.27], significant: false, isRatio: false },
+  { label: "Overnight TIR", md: 10.18, ci: [7.42, 12.94], significant: true, isRatio: false },
+  { label: "Overnight TBR", md: -0.67, ci: [-0.91, -0.43], significant: true, isRatio: false },
+  { label: "LGA", md: 0.82, ci: [0.48, 1.41], significant: false, isRatio: true },
+  { label: "SGA", md: 3.03, ci: [0.49, 18.62], significant: false, isRatio: true },
+  { label: "Neonatal hypoglycemia", md: 1.19, ci: [0.23, 6.2], significant: false, isRatio: true },
+];
+
+export const AID_FRAMING =
+  "The overnight benefit is the robust finding; 24-hour and neonatal outcome benefits are not established.";
+
 // ── TDD dispatch (schedule switch, C-02) ────────────────────────────────────
 export interface TddResult {
   tdd: number;

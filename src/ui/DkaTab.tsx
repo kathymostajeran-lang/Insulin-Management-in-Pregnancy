@@ -4,17 +4,11 @@
  *
  * REFERENCE PROTOCOL. UC23 fluid/electrolyte orders are shown as reference, not
  * computed. HS-14: while DKA is active, suspend the routine dosing modules and
- * manage DKA only. The Yale drip and ICU-criteria check live in dosing.ts.
+ * manage DKA only. The Yale drip logic lives in dosing.ts.
  */
 import { useState } from "react";
-import { dkaIcuCriteria, yaleInsulinInfusion, DKA } from "../logic/dosing";
-import { Kicker, NumberField, Seg, Alert, Cite } from "./controls";
-
-const YN: ReadonlyArray<{ value: "yes" | "no"; label: string }> = [
-  { value: "yes", label: "Yes" },
-  { value: "no", label: "No" },
-];
-const yes = (v: "yes" | "no") => v === "yes";
+import { yaleInsulinInfusion, DKA } from "../logic/dosing";
+import { Kicker, NumberField, Alert, Cite } from "./controls";
 
 const YALE_HEADING: Record<string, string> = {
   INITIATE: "Initiate infusion",
@@ -24,10 +18,6 @@ const YALE_HEADING: Record<string, string> = {
 };
 
 export function DkaTab() {
-  const [ph, setPh] = useState<number | null>(7.2);
-  const [altered, setAltered] = useState<"yes" | "no">("no");
-  const [ekg, setEkg] = useState<"yes" | "no">("no");
-  const [kussmaul, setKussmaul] = useState<"yes" | "no">("no");
   const [yale, setYale] = useState<{ currentBs: number | null; previousBs: number | null; hours: number | null; rate: number | null }>({
     currentBs: 220,
     previousBs: 200,
@@ -35,7 +25,6 @@ export function DkaTab() {
     rate: 3,
   });
 
-  const icu = dkaIcuCriteria({ alteredSensorium: yes(altered), ph, abnormalEkg: yes(ekg), kussmaul: yes(kussmaul) });
   const yaleResult =
     yale.currentBs === null
       ? null
@@ -50,24 +39,6 @@ export function DkaTab() {
           <Cite> HS-14 · spec §10</Cite>
         </p>
       </Alert>
-
-      {/* ── ICU escalation ────────────────────────────────────────── */}
-      <section>
-        <Kicker>ICU consideration</Kicker>
-        <div className="rail" style={{ marginTop: 8 }}>
-          <NumberField label="pH" value={ph} onChange={setPh} step={0.01} min={6.5} max={8} />
-          <div className="field"><label>Altered sensorium?</label><Seg name="altered" value={altered} options={YN} onChange={setAltered} /></div>
-          <div className="field"><label>Abnormal EKG?</label><Seg name="ekg" value={ekg} options={YN} onChange={setEkg} /></div>
-          <div className="field"><label>Kussmaul respiration?</label><Seg name="kussmaul" value={kussmaul} options={YN} onChange={setKussmaul} /></div>
-        </div>
-        {icu.indicated ? (
-          <Alert title="Consider ICU">
-            <p style={{ marginBottom: 0 }}>Triggered by: {icu.reasons.join(" · ")}.</p>
-          </Alert>
-        ) : (
-          <p className="text-muted" style={{ fontSize: 13, marginTop: 8 }}>No ICU criterion currently met (altered sensorium, pH &lt; 7.1, abnormal EKG, or Kussmaul).</p>
-        )}
-      </section>
 
       {/* ── Fluids (reference) ────────────────────────────────────── */}
       <section className="card elev-sm">
