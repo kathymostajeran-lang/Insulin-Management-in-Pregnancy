@@ -35,12 +35,12 @@ const TABS = [
   { id: "correct", label: "Correct", Comp: CorrectTab },
   { id: "labor", label: "Labor", Comp: LaborTab },
   { id: "adjust", label: "Adjust", Comp: AdjustTab },
-  { id: "hypo", label: "Hypo", Comp: HypoTab },
   { id: "steroids", label: "Steroids", Comp: SteroidsTab },
   { id: "dka", label: "DKA", Comp: DkaTab },
-  { id: "cgm", label: "CGM", Comp: CgmTab },
   { id: "pump", label: "Pump", Comp: PumpTab },
   { id: "postpartum", label: "Postpartum", Comp: PostpartumTab },
+  { id: "cgm", label: "CGM", Comp: CgmTab },
+  { id: "hypo", label: "Hypo", Comp: HypoTab },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -149,14 +149,16 @@ export function App() {
           <Labeled label="Stage">
             <Seg name="stage" value={inputs.stage} options={STAGE_OPTIONS} onChange={(stage) => patch({ stage })} />
           </Labeled>
-          <Labeled label="Obesity dosing · >150% DBW" hint="UC23 branch — clinician-applied multiplier">
-            <Seg
-              name="obesity"
-              value={inputs.obesityDosing}
-              options={OBESITY_OPTIONS}
-              onChange={(obesityDosing) => patch({ obesityDosing })}
-            />
-          </Labeled>
+          <div style={{ gridColumn: "1 / -1" }}>
+            <Labeled label="Obesity dosing · >150% DBW" hint="UC23 branch — clinician-applied multiplier">
+              <Seg
+                name="obesity"
+                value={inputs.obesityDosing}
+                options={OBESITY_OPTIONS}
+                onChange={(obesityDosing) => patch({ obesityDosing })}
+              />
+            </Labeled>
+          </div>
         </div>
 
         {/* Config: TDD schedule switch (C-02) + demo/clear */}
