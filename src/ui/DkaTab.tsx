@@ -22,11 +22,14 @@ const YALE_HEADING: Record<string, string> = {
 };
 
 export function DkaTab() {
+  // Only current glucose is pre-filled; previous BG, elapsed hours, and current
+  // rate start blank so the calculator opens on "Initiate infusion" — the bolus
+  // is started together with the infusion (Yale initiation: bolus = start rate).
   const [yale, setYale] = useState<{ currentBs: number | null; previousBs: number | null; hours: number | null; rate: number | null }>({
     currentBs: 220,
-    previousBs: 200,
-    hours: 1,
-    rate: 3,
+    previousBs: null,
+    hours: null,
+    rate: null,
   });
 
   const yaleResult =
