@@ -41,7 +41,7 @@ src/
 │   ├── AdjustTab.tsx    # Pattern-based SMBG titration (+ 20% TDD cap)
 │   ├── HypoTab.tsx      # Hypoglycemia threshold (C-01), Rule of 15, rescue ladder
 │   ├── SteroidsTab.tsx  # Betamethasone insulin adjustment (Mathiesen day-by-day) (§9)
-│   ├── DkaTab.tsx       # DKA ICU check + Yale IV insulin drip; reference protocol (§10, HS-14)
+│   ├── DkaTab.tsx       # DKA: Yale IV insulin drip (strict, no routine bolus) + UC23 fluids/K (§10, HS-14)
 │   ├── CgmTab.tsx       # CGM scorecard + tagged-value handoff (HS-09/10/11 guards)
 │   ├── PumpTab.tsx      # CSII initiation (C-14 resolved)
 │   └── PostpartumTab.tsx # Immediate PP dose options, all methods shown (C-13)

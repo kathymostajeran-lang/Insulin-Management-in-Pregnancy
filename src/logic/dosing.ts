@@ -861,14 +861,6 @@ export function dkaDiagnosis(labs: DkaLabs): DkaDiagnosis {
   return { isDka, criteria: { acidemia, lowBicarb, highAnionGap, ketones }, euglycemic };
 }
 
-/** UC23 DKA insulin loading dose, weight-based: 0.1–0.4 units/kg (IV). */
-export function dkaLoadingDose(weightKg: number): { low: number; high: number } {
-  return {
-    low: pyRound(weightKg * DKA.insulin.loadingUnitsPerKg[0]),
-    high: pyRound(weightKg * DKA.insulin.loadingUnitsPerKg[1]),
-  };
-}
-
 export interface DkaIcu {
   indicated: boolean;
   reasons: string[];

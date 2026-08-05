@@ -45,7 +45,6 @@ import {
   mathiesenSteroidAdjustment,
   dkaDiagnosis,
   dkaIcuCriteria,
-  dkaLoadingDose,
   yaleInsulinInfusion,
   yaleDelta,
   aidTargetCheck,
@@ -376,11 +375,6 @@ describe("DKA module (§10)", () => {
     expect(dkaIcuCriteria({ alteredSensorium: false, ph: 7.05, abnormalEkg: false, kussmaul: false }).indicated).toBe(true);
     expect(dkaIcuCriteria({ alteredSensorium: true, ph: 7.2, abnormalEkg: false, kussmaul: false }).reasons).toContain("Altered sensorium");
     expect(dkaIcuCriteria({ alteredSensorium: false, ph: 7.2, abnormalEkg: false, kussmaul: false }).indicated).toBe(false);
-  });
-
-  it("weight-based loading dose is 0.1–0.4 u/kg", () => {
-    expect(dkaLoadingDose(90)).toEqual({ low: 9, high: 36 });
-    expect(dkaLoadingDose(82)).toEqual({ low: 8, high: 33 }); // 8.2→8, 32.8→33
   });
 });
 

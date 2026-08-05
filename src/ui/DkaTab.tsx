@@ -1,15 +1,17 @@
 /**
- * DkaTab — diabetic ketoacidosis (spec §10 / Module H). Sole source UC23, plus
- * the Yale IV insulin infusion drip (user-requested; not pregnancy-specific).
+ * DkaTab — diabetic ketoacidosis (spec §10 / Module H).
  *
- * REFERENCE PROTOCOL. UC23 fluid/electrolyte orders are shown as reference, not
- * computed. HS-14: while DKA is active, suspend the routine dosing modules and
- * manage DKA only. The Yale drip logic lives in dosing.ts.
+ * Insulin is managed **strictly by the Yale IV insulin infusion protocol**
+ * (initiation, rate adjustments, hypoglycemia rescue). There is NO routine
+ * weight-based loading bolus: Yale starts an infusion without a bolus, and an
+ * IV bolus is given only when *initiating* at BG ≥ 300 (glucose-based,
+ * round(BG ÷ 100) units). Fluids and potassium/electrolytes are supplemental
+ * reference from UC23. HS-14: while DKA is active, suspend the routine dosing
+ * modules and manage DKA only. Yale logic lives in dosing.ts.
  */
 import { useState } from "react";
-import { yaleInsulinInfusion, dkaLoadingDose, DKA } from "../logic/dosing";
+import { yaleInsulinInfusion, DKA } from "../logic/dosing";
 import { Kicker, NumberField, Alert, Cite } from "./controls";
-import type { TabProps } from "./types";
 
 const YALE_HEADING: Record<string, string> = {
   INITIATE: "Initiate infusion",
@@ -18,8 +20,7 @@ const YALE_HEADING: Record<string, string> = {
   RESCUE: "Hypoglycemia rescue",
 };
 
-export function DkaTab({ model }: TabProps) {
-  const load = model.weightKg != null ? dkaLoadingDose(model.weightKg) : null;
+export function DkaTab() {
   const [yale, setYale] = useState<{ currentBs: number | null; previousBs: number | null; hours: number | null; rate: number | null }>({
     currentBs: 220,
     previousBs: 200,
@@ -50,40 +51,20 @@ export function DkaTab({ model }: TabProps) {
             <tr><td>Hour 1</td><td>{DKA.fluids.hour1LitersNs} L normal saline</td></tr>
             <tr><td>Hours 2–4</td><td>{DKA.fluids.hours2to4LitersPerHour[0]}–{DKA.fluids.hours2to4LitersPerHour[1]} L / hour</td></tr>
             <tr><td>Thereafter</td><td>{DKA.fluids.thereafterMlPerHour} mL/hr {DKA.fluids.thereafterFluid} until 80% of the deficit is corrected</td></tr>
-            <tr><td>BG &lt; {DKA.fluids.switchToD5HalfNsWhenBgLt}</td><td>change to D5 ½NS, then follow the intrapartum IV insulin algorithm (Labor tab)</td></tr>
+            <tr><td>BG &lt; {DKA.fluids.switchToD5HalfNsWhenBgLt}</td><td>change to D5 ½NS to allow the insulin infusion to continue</td></tr>
           </tbody>
         </table>
       </section>
 
-      {/* ── Insulin loading dose (weight-based, UC23) ─────────────── */}
-      <section>
-        <Kicker>Insulin loading dose · UC23</Kicker>
-        {load ? (
-          <>
-            <p style={{ marginTop: 8 }}>
-              <span className="num" style={{ fontSize: 28 }}>{load.low}–{load.high}</span>{" "}
-              <span className="text-muted">units IV</span>
-            </p>
-            <p className="text-muted" style={{ fontSize: 12 }}>
-              {DKA.insulin.loadingUnitsPerKg[0]}–{DKA.insulin.loadingUnitsPerKg[1]} u/kg × {model.weightKg!.toFixed(1)} kg.
-              Weight-based loading is a UC23 order; the Yale drip below sets the ongoing infusion rate.
-            </p>
-          </>
-        ) : (
-          <p className="text-muted" style={{ fontSize: 13, marginTop: 8 }}>
-            Enter the patient's weight at the top of the app to calculate the loading dose.
-          </p>
-        )}
-        <div className="card-meta"><Cite>UC23 · 0.1–0.4 u/kg</Cite></div>
-      </section>
-
-      {/* ── Insulin infusion · Yale protocol ──────────────────────── */}
+      {/* ── Insulin infusion · Yale protocol (strict) ─────────────── */}
       <section>
         <Kicker>Insulin infusion · Yale protocol</Kicker>
         <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
-          General critical-care IV insulin protocol, target 140–180 mg/dL — <strong>not</strong>{" "}
-          pregnancy-specific. Enter the current and previous BG, the interval, and the running rate;
-          the recommendation uses the glucose and its hourly rate of change.
+          Insulin is managed <strong>strictly by Yale</strong> (target 140–180 mg/dL; general
+          critical-care, not pregnancy-specific). <strong>No routine loading bolus</strong> — the
+          infusion starts without a bolus, and an IV bolus is given only when initiating at BG ≥ 300
+          (round(BG ÷ 100) units). Continue the drip until the anion gap and bicarbonate normalize —
+          <em> not</em> until glucose normalizes.
         </p>
         <div className="rail" style={{ marginTop: 8 }}>
           <NumberField label="Current BG · mg/dL" value={yale.currentBs} onChange={(v) => setYale((y) => ({ ...y, currentBs: v }))} min={0} />
@@ -111,20 +92,9 @@ export function DkaTab({ model }: TabProps) {
         </div>
       </section>
 
+      {/* ── Potassium & electrolytes (reference) ──────────────────── */}
       <section className="card">
-        <div className="card-kicker">DKA insulin — key rules · UC23</div>
-        <table className="dtab">
-          <tbody>
-            <tr><td>Escalate</td><td>double the infusion rate if BG does not fall {DKA.insulin.doubleIfNotDecreasedPct}% in the first {DKA.insulin.doubleWindowHours} h (if hyperglycemic)</td></tr>
-            <tr><td>Continue until</td><td>bicarbonate and anion gap normalize — <strong>not</strong> until glucose normalizes</td></tr>
-            <tr><td>Euglycemic DKA</td><td>may need D5 to permit continued insulin administration</td></tr>
-          </tbody>
-        </table>
-        <div className="card-meta"><Cite>UC23</Cite></div>
-      </section>
-
-      <section className="card">
-        <div className="card-kicker">Electrolytes &amp; monitoring · UC23</div>
+        <div className="card-kicker">Potassium &amp; electrolytes · reference · UC23</div>
         <table className="dtab">
           <tbody>
             <tr><td>Potassium — normal / low</td><td>consider K up to {DKA.potassium.normalOrLowMeqPerHourMax[0]}–{DKA.potassium.normalOrLowMeqPerHourMax[1]} mEq/hr</td></tr>
