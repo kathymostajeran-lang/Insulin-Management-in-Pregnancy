@@ -17,7 +17,7 @@ import {
   type ObesityDosing,
 } from "./config";
 import type { Config, TDDSchedule } from "./logic/dosing";
-import { deriveModel } from "./model";
+import { deriveModel, bmiCategory } from "./model";
 import { NumberField, Seg, Labeled } from "./ui/controls";
 import { StartTab } from "./ui/StartTab";
 import { LaborTab } from "./ui/LaborTab";
@@ -76,6 +76,7 @@ export function App() {
     inputs.weight != null
       ? `${inputs.weight} ${inputs.unit} · ${inputs.gaWeeks ?? "–"} wk · ${config.tddSchedule}`
       : "Tap to enter patient details";
+  const bmiCat = model.bmi != null ? bmiCategory(model.bmi) : null;
 
   return (
     <div className="app">
@@ -141,13 +142,28 @@ export function App() {
             label="Height · in, optional"
             value={inputs.heightIn}
             onChange={(v) => patch({ heightIn: v })}
-            hint={model.pctDbw ? `${Math.round(model.pctDbw)}% DBW` : "for obesity dosing"}
+            hint={
+              model.bmi != null
+                ? `BMI ${model.bmi}${model.pctDbw ? ` · ${Math.round(model.pctDbw)}% DBW` : ""}`
+                : "for BMI & obesity dosing"
+            }
             min={0}
           />
           <Labeled label="Stage">
             <Seg name="stage" value={inputs.stage} options={STAGE_OPTIONS} onChange={(stage) => patch({ stage })} />
           </Labeled>
           <div style={{ gridColumn: "1 / -1" }}>
+            {bmiCat ? (
+              <div style={{ marginBottom: "var(--space-2)", fontSize: 14 }}>
+                BMI <span className="num" style={{ fontSize: 18 }}>{model.bmi}</span>{" "}
+                <span className={bmiCat.obese ? undefined : "text-muted"}>— {bmiCat.label}</span>{" "}
+                {bmiCat.obese ? <span className="tag tag-accent">obese</span> : null}
+              </div>
+            ) : (
+              <div className="text-muted" style={{ marginBottom: "var(--space-2)", fontSize: 13 }}>
+                Enter weight and height for BMI.
+              </div>
+            )}
             <Labeled label="Obesity dosing · >150% DBW" hint="UC23 branch — clinician-applied multiplier">
               <Seg
                 name="obesity"

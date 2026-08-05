@@ -70,7 +70,7 @@ Follow these exactly — they are what make the codebase safe and consistent.
 - **Hard stops are blocking, not advisory** (spec §15): e.g. `uc23FixedCorrection` throws `HardStopError` off-label.
 
 ### Glue — `src/model.ts`
-- Converts inputs (unit → kg, height → DBW) and **delegates all dose math to `dosing.ts`**. Never add a threshold or formula here.
+- Converts inputs (unit → kg, height → DBW, weight+height → **BMI** with WHO obesity category) and **delegates all dose math to `dosing.ts`**. Anthropometrics live here; never add a dosing threshold or formula. Covered by `model.test.ts`.
 
 ### Configuration — `src/config.ts`
 - Holds tunable knobs: TDD schedule options, titration step, dose rounding, unresolved-policy defaults, and the **synthetic demo prefill**. Change behavior here, not with magic numbers in the UI. `DEMO_PREFILL` is the only patient-shaped data in the repo and is entirely synthetic.
