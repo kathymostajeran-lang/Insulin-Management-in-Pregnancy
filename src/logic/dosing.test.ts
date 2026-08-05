@@ -28,6 +28,7 @@ import {
   postpartumTddOptions,
   pyRound,
   computeTdd,
+  glycemicTargets,
   DEFAULT_CONFIG,
   evaluateCgm,
   cgmTitrationGate,
@@ -471,6 +472,19 @@ describe("AID module (§8)", () => {
   it("only the pregnancy-specific system meets the target among the known systems", () => {
     const meeting = AID_SYSTEMS.filter((s) => !aidTargetCheck(s.minTargetMgdl).exceedsFasting);
     expect(meeting.map((s) => s.label)).toEqual(["AiDAPT (pregnancy-specific)"]);
+  });
+});
+
+describe("Glycemic targets by diabetes type (§3)", () => {
+  it("T1/T2/GDM-A2 share ranges", () => {
+    expect(glycemicTargets("T1DM").fasting).toEqual([70, 95]);
+    expect(glycemicTargets("T2DM").pp1h).toEqual([110, 140]);
+    expect(glycemicTargets("GDM_A2").pp2h).toEqual([100, 120]);
+  });
+  it("GDM-A1 has no lower bound", () => {
+    expect(glycemicTargets("GDM_A1").fasting).toEqual([null, 95]);
+    expect(glycemicTargets("GDM_A1").pp1h).toEqual([null, 140]);
+    expect(glycemicTargets("GDM_A1").pp2h).toEqual([null, 120]);
   });
 });
 
