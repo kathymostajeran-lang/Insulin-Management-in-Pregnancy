@@ -20,7 +20,6 @@ import type { Config, TDDSchedule } from "./logic/dosing";
 import { deriveModel } from "./model";
 import { NumberField, Seg, Labeled } from "./ui/controls";
 import { StartTab } from "./ui/StartTab";
-import { CorrectTab } from "./ui/CorrectTab";
 import { LaborTab } from "./ui/LaborTab";
 import { AdjustTab } from "./ui/AdjustTab";
 import { HypoTab } from "./ui/HypoTab";
@@ -32,12 +31,11 @@ import { PostpartumTab } from "./ui/PostpartumTab";
 
 const TABS = [
   { id: "start", label: "Start", Comp: StartTab },
-  { id: "correct", label: "Correct", Comp: CorrectTab },
-  { id: "labor", label: "Labor", Comp: LaborTab },
   { id: "adjust", label: "Adjust", Comp: AdjustTab },
-  { id: "steroids", label: "Steroids", Comp: SteroidsTab },
-  { id: "dka", label: "DKA", Comp: DkaTab },
   { id: "pump", label: "Pump", Comp: PumpTab },
+  { id: "steroids", label: "Steroids", Comp: SteroidsTab },
+  { id: "labor", label: "Labor", Comp: LaborTab },
+  { id: "dka", label: "DKA", Comp: DkaTab },
   { id: "postpartum", label: "Postpartum", Comp: PostpartumTab },
   { id: "cgm", label: "CGM", Comp: CgmTab },
   { id: "hypo", label: "Hypo", Comp: HypoTab },
