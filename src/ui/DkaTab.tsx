@@ -36,14 +36,6 @@ export function DkaTab() {
 
   return (
     <>
-      <Alert title="Reference protocol — not automated dosing" stop>
-        <p style={{ marginBottom: 0 }}>
-          DKA is an ICU-level emergency. While a DKA episode is active,{" "}
-          <strong>suspend the routine insulin modules</strong> and manage DKA only.
-          <Cite> HS-14 · spec §10</Cite>
-        </p>
-      </Alert>
-
       {/* ── Fluids (reference) ────────────────────────────────────── */}
       <section className="card elev-sm">
         <div className="card-kicker">Fluids · reference · UC23</div>
@@ -60,12 +52,6 @@ export function DkaTab() {
       {/* ── Insulin infusion · Yale protocol (strict) ─────────────── */}
       <section>
         <Kicker>Insulin infusion · Yale protocol</Kicker>
-        <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
-          Managed <strong>strictly by the Yale protocol</strong> — target {YALE.target[0]}–{YALE.target[1]} mg/dL.
-          At initiation, give an <strong>IV bolus equal to the starting rate</strong> (BG ÷ 100, rounded
-          to 0.5 U), then run the infusion at that rate. Enter current and previous BG, the interval,
-          and the running rate; the recommendation uses the current-BG column and the hourly rate of change.
-        </p>
         <div className="rail" style={{ marginTop: 8 }}>
           <NumberField label="Current BG · mg/dL" value={yale.currentBs} onChange={(v) => setYale((y) => ({ ...y, currentBs: v }))} min={0} />
           <NumberField label="Previous BG · mg/dL" value={yale.previousBs} onChange={(v) => setYale((y) => ({ ...y, previousBs: v }))} min={0} hint="0 / blank = starting" />
@@ -118,13 +104,6 @@ export function DkaTab() {
           </tbody>
         </table>
       </section>
-
-      <Alert title="Do not deliver during DKA">
-        <p style={{ marginBottom: 0 }}>
-          Classical teaching: do not intervene (deliver) while the patient is in DKA — stabilize the
-          mother first.<Cite> UC23</Cite>
-        </p>
-      </Alert>
     </>
   );
 }
