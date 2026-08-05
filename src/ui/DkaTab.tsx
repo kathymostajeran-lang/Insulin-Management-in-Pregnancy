@@ -7,8 +7,9 @@
  * manage DKA only. The Yale drip logic lives in dosing.ts.
  */
 import { useState } from "react";
-import { yaleInsulinInfusion, DKA } from "../logic/dosing";
+import { yaleInsulinInfusion, dkaLoadingDose, DKA } from "../logic/dosing";
 import { Kicker, NumberField, Alert, Cite } from "./controls";
+import type { TabProps } from "./types";
 
 const YALE_HEADING: Record<string, string> = {
   INITIATE: "Initiate infusion",
@@ -17,7 +18,8 @@ const YALE_HEADING: Record<string, string> = {
   RESCUE: "Hypoglycemia rescue",
 };
 
-export function DkaTab() {
+export function DkaTab({ model }: TabProps) {
+  const load = model.weightKg != null ? dkaLoadingDose(model.weightKg) : null;
   const [yale, setYale] = useState<{ currentBs: number | null; previousBs: number | null; hours: number | null; rate: number | null }>({
     currentBs: 220,
     previousBs: 200,
@@ -51,6 +53,28 @@ export function DkaTab() {
             <tr><td>BG &lt; {DKA.fluids.switchToD5HalfNsWhenBgLt}</td><td>change to D5 ½NS, then follow the intrapartum IV insulin algorithm (Labor tab)</td></tr>
           </tbody>
         </table>
+      </section>
+
+      {/* ── Insulin loading dose (weight-based, UC23) ─────────────── */}
+      <section>
+        <Kicker>Insulin loading dose · UC23</Kicker>
+        {load ? (
+          <>
+            <p style={{ marginTop: 8 }}>
+              <span className="num" style={{ fontSize: 28 }}>{load.low}–{load.high}</span>{" "}
+              <span className="text-muted">units IV</span>
+            </p>
+            <p className="text-muted" style={{ fontSize: 12 }}>
+              {DKA.insulin.loadingUnitsPerKg[0]}–{DKA.insulin.loadingUnitsPerKg[1]} u/kg × {model.weightKg!.toFixed(1)} kg.
+              Weight-based loading is a UC23 order; the Yale drip below sets the ongoing infusion rate.
+            </p>
+          </>
+        ) : (
+          <p className="text-muted" style={{ fontSize: 13, marginTop: 8 }}>
+            Enter the patient's weight at the top of the app to calculate the loading dose.
+          </p>
+        )}
+        <div className="card-meta"><Cite>UC23 · 0.1–0.4 u/kg</Cite></div>
       </section>
 
       {/* ── Insulin infusion · Yale protocol ──────────────────────── */}
@@ -91,7 +115,6 @@ export function DkaTab() {
         <div className="card-kicker">DKA insulin — key rules · UC23</div>
         <table className="dtab">
           <tbody>
-            <tr><td>Loading</td><td>{DKA.insulin.loadingUnitsPerKg[0]}–{DKA.insulin.loadingUnitsPerKg[1]} units/kg</td></tr>
             <tr><td>Escalate</td><td>double the infusion rate if BG does not fall {DKA.insulin.doubleIfNotDecreasedPct}% in the first {DKA.insulin.doubleWindowHours} h (if hyperglycemic)</td></tr>
             <tr><td>Continue until</td><td>bicarbonate and anion gap normalize — <strong>not</strong> until glucose normalizes</td></tr>
             <tr><td>Euglycemic DKA</td><td>may need D5 to permit continued insulin administration</td></tr>
