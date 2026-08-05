@@ -28,7 +28,6 @@ import { SteroidsTab } from "./ui/SteroidsTab";
 import { DkaTab } from "./ui/DkaTab";
 import { CgmTab } from "./ui/CgmTab";
 import { PumpTab } from "./ui/PumpTab";
-import { AidTab } from "./ui/AidTab";
 import { PostpartumTab } from "./ui/PostpartumTab";
 
 const TABS = [
@@ -41,7 +40,6 @@ const TABS = [
   { id: "dka", label: "DKA", Comp: DkaTab },
   { id: "cgm", label: "CGM", Comp: CgmTab },
   { id: "pump", label: "Pump", Comp: PumpTab },
-  { id: "aid", label: "AID", Comp: AidTab },
   { id: "postpartum", label: "Postpartum", Comp: PostpartumTab },
 ] as const;
 
