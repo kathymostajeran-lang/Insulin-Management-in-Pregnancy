@@ -77,7 +77,7 @@ Follow these exactly — they are what make the codebase safe and consistent.
 - Holds tunable knobs: TDD schedule options, titration step, dose rounding, unresolved-policy defaults, and the **synthetic demo prefill**. Change behavior here, not with magic numbers in the UI. `DEMO_PREFILL` is the only patient-shaped data in the repo and is entirely synthetic.
 
 ### App shell — `src/App.tsx`
-- Owns patient inputs, the TDD banner, and tab routing. Wires inputs → `model.ts`/`dosing.ts` → the active tab. Contains no clinical rules itself.
+- Mobile-first shell: a **sticky top bar** with a module `<select>` switcher + compact TDD, a **collapsible patient-inputs panel** (`<details>`, with a live one-line summary), then the active module. Wires inputs → `model.ts`/`dosing.ts` → the active module. Contains no clinical rules itself.
 
 ### UI — `src/ui/`
 - **One component per tab**, plus shared controls in `controls.tsx`. Components render results from `dosing.ts`; they must not re-implement clinical math. Every dose displayed shows its input, source, and (where relevant) the intermediate arithmetic — a spec §0 mitigation.

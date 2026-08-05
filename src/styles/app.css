@@ -110,3 +110,56 @@ html, body {
   padding: var(--space-3); border-top: 2px solid var(--color-divider);
   font-size: 12px; color: color-mix(in srgb, var(--color-text) 55%, transparent);
 }
+
+/* ── Mobile-first shell ─────────────────────────────────────────────── */
+/* Sticky bar: module switcher + compact TDD, always visible while scrolling. */
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-bg);
+  border-bottom: 2px solid var(--color-divider);
+}
+.switcher {
+  flex: 1 1 auto; min-width: 0;
+  min-height: 44px; padding: 8px 34px 8px 12px;
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 16px; color: var(--color-text); line-height: 1.2;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23ec3013' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+.switcher:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
+.switcher:focus-visible { border-color: var(--color-accent); outline: none; }
+.topbar-tdd {
+  flex: none; white-space: nowrap;
+  font-family: var(--font-heading);
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+.topbar-tdd .num { font-size: 22px; color: var(--color-accent); }
+.topbar-tdd-unit { font-size: 12px; }
+
+/* Collapsible patient inputs */
+.inputs-panel { border-bottom: 2px solid var(--color-divider); }
+.inputs-summary {
+  list-style: none; cursor: pointer; user-select: none;
+  display: flex; align-items: baseline; gap: var(--space-3); flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4); min-height: 44px;
+}
+.inputs-summary::-webkit-details-marker { display: none; }
+.inputs-summary-label {
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 14px;
+}
+.inputs-summary-detail { font-size: 12px; }
+.inputs-summary::after {
+  content: "▾"; margin-left: auto; color: var(--color-accent);
+  transition: transform 0.15s ease;
+}
+.inputs-panel[open] .inputs-summary::after { transform: rotate(180deg); }
+
+/* Touch ergonomics: 16px inputs avoid iOS focus-zoom; roomier segmented options. */
+.input, .switcher { font-size: 16px; }
+.seg-opt { padding: 9px 14px; }
+.tab { min-height: 44px; }

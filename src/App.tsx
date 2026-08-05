@@ -64,6 +64,7 @@ export function App() {
   const [inputs, setInputs] = useState<PatientInputs>(DEMO_PREFILL);
   const [config, setConfig] = useState<Config>(APP_CONFIG);
   const [active, setActive] = useState<TabId>("start");
+  const [inputsOpen, setInputsOpen] = useState(true);
 
   const model = useMemo(() => deriveModel(inputs, config), [inputs, config]);
 
@@ -72,6 +73,11 @@ export function App() {
   }
 
   const ActiveComp = TABS.find((t) => t.id === active)!.Comp;
+  const activeLabel = TABS.find((t) => t.id === active)!.label;
+  const inputSummary =
+    inputs.weight != null
+      ? `${inputs.weight} ${inputs.unit} · ${inputs.gaWeeks ?? "–"} wk · ${config.tddSchedule}`
+      : "Tap to enter patient details";
 
   return (
     <div className="app">
@@ -82,9 +88,38 @@ export function App() {
         </div>
       </header>
 
-      {/* ── Patient inputs ─────────────────────────────────────────── */}
-      <section className="view" style={{ paddingBottom: 0 }}>
-        <div className="rail">
+      {/* ── Sticky module switcher + compact TDD ───────────────────── */}
+      <div className="topbar">
+        <select
+          className="switcher"
+          aria-label="Module"
+          value={active}
+          onChange={(e) => setActive(e.target.value as TabId)}
+        >
+          {TABS.map((t) => (
+            <option key={t.id} value={t.id}>{t.label}</option>
+          ))}
+        </select>
+        <div className="topbar-tdd" aria-live="polite">
+          {model.tdd ? (
+            <><span className="num">{model.tdd.tdd}</span> <span className="topbar-tdd-unit">u/24h</span></>
+          ) : (
+            <span className="num" style={{ opacity: 0.35 }}>—</span>
+          )}
+        </div>
+      </div>
+
+      {/* ── Collapsible patient inputs ─────────────────────────────── */}
+      <details className="inputs-panel" open={inputsOpen} onToggle={(e) => setInputsOpen(e.currentTarget.open)}>
+        <summary className="inputs-summary">
+          <span className="inputs-summary-label">Patient inputs</span>
+          <span className="text-muted inputs-summary-detail">{inputSummary}</span>
+        </summary>
+        <div className="view" style={{ paddingTop: "var(--space-3)", paddingBottom: 0 }}>
+          <TddBanner model={model} />
+        </div>
+        <section className="view" style={{ paddingBottom: "var(--space-4)" }}>
+          <div className="rail">
           <NumberField
             label={`Current weight · ${inputs.unit}`}
             value={inputs.weight}
@@ -143,29 +178,10 @@ export function App() {
             </button>
           </div>
         </div>
-      </section>
+        </section>
+      </details>
 
-      {/* ── TDD banner (persistent across tabs) ────────────────────── */}
-      <section className="view" style={{ paddingTop: "var(--space-3)", paddingBottom: 0 }}>
-        <TddBanner model={model} />
-      </section>
-
-      {/* ── Tabs ───────────────────────────────────────────────────── */}
-      <nav className="tabs" role="tablist" aria-label="Modules">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={active === t.id}
-            className="tab"
-            onClick={() => setActive(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
-
-      <main className="view" role="tabpanel">
+      <main className="view" role="tabpanel" aria-label={activeLabel}>
         <ActiveComp model={model} config={config} inputs={inputs} />
       </main>
 
