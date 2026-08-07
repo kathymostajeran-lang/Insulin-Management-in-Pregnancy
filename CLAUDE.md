@@ -37,12 +37,11 @@ src/
 │   ├── types.ts         # Shared TabProps
 │   ├── controls.tsx     # Shared presentational controls (no clinical math)
 │   ├── StartTab.tsx     # Initiation schedule (conventional NPH/RAA split)
-│   ├── CorrectTab.tsx   # Calculated ICF correction + UC23 fixed scale (+ hard stop)
 │   ├── LaborTab.tsx     # UC23 intrapartum IV algorithm (+ C-15 policy gap)
 │   ├── AdjustTab.tsx    # Pattern-based SMBG titration (+ 20% TDD cap)
 │   ├── HypoTab.tsx      # Hypoglycemia threshold (C-01), Rule of 15, rescue ladder
 │   ├── SteroidsTab.tsx  # Betamethasone insulin adjustment (Mathiesen day-by-day) (§9)
-│   ├── DkaTab.tsx       # DKA ICU check + Yale IV insulin drip; reference protocol (§10, HS-14)
+│   ├── DkaTab.tsx       # DKA: Yale IV insulin drip (published protocol, target 100–139) + UC23 fluids/K (§10)
 │   ├── CgmTab.tsx       # CGM scorecard + tagged-value handoff (HS-09/10/11 guards)
 │   ├── PumpTab.tsx      # CSII initiation (C-14 resolved)
 │   └── PostpartumTab.tsx # Immediate PP dose options, all methods shown (C-13)
@@ -71,7 +70,7 @@ Follow these exactly — they are what make the codebase safe and consistent.
 - **Hard stops are blocking, not advisory** (spec §15): e.g. `uc23FixedCorrection` throws `HardStopError` off-label.
 
 ### Glue — `src/model.ts`
-- Converts inputs (unit → kg, height → DBW) and **delegates all dose math to `dosing.ts`**. Never add a threshold or formula here.
+- Converts inputs (unit → kg, height → DBW, weight+height → **BMI** with WHO obesity category) and **delegates all dose math to `dosing.ts`**. Anthropometrics live here; never add a dosing threshold or formula. Covered by `model.test.ts`.
 
 ### Configuration — `src/config.ts`
 - Holds tunable knobs: TDD schedule options, titration step, dose rounding, unresolved-policy defaults, and the **synthetic demo prefill**. Change behavior here, not with magic numbers in the UI. `DEMO_PREFILL` is the only patient-shaped data in the repo and is entirely synthetic.
@@ -146,7 +145,7 @@ Source precedence (spec §1): targets/monitoring **ADA26 > ES25 > VB24 > UC23**;
 
 **Sources beyond the original four (both user-requested, both cited):**
 1. **Mathiesen ER algorithm** (perinatology.com) — the Steroids module's betamethasone insulin adjustment. Pregnancy-specific. Cited via `MATHIESEN.source` in `dosing.ts`.
-2. **Yale insulin infusion protocol** — the DKA IV insulin drip. Ported from *Insulin IP Calc v2.4*, © John George K., **LGPL v3** (the user's `Yale_infusion_calculator` repo). This is a **general critical-care** protocol (target 140–180 mg/dL), **not pregnancy-specific** — the DKA tab flags this in the UI. The port carries attribution in the `dosing.ts` Yale header comment; being LGPL, keep that attribution and the upstream LICENSE.
+2. **Yale insulin infusion protocol** — the DKA IV insulin drip. Transcribed directly from the **published Yale Insulin Infusion Protocol** (target **100–139 mg/dL**; initiation bolus = initial rate = BG ÷ 100 rounded to 0.5; the "Changing the Infusion Rate" table keyed on current-BG column × hourly rate of change; Δ scaled to the running rate). It is a **general critical-care ICU** protocol, **not pregnancy-specific and not tailored for DKA/HHS** — the tab surfaces the protocol's own "consult MD if BG ≥ 500 or DKA is considered" caveat. (An earlier version was ported from the user's LGPL `Yale_infusion_calculator`, but the engine was **rewritten to match the published protocol**, which differs materially — target band and the always-on initiation bolus.)
 
 Any further out-of-spec source must be explicitly cited and, if not pregnancy-specific, flagged as such in the UI.
 
@@ -158,4 +157,4 @@ For grounding new clinical facts (via MCP), prefer **PubMed**, **ClinicalTrials.
 
 Per the spec's suggested order (§17), implemented so far: data/target service, the TDD/initiation calculator with the C-02 switch, pattern titration, the fixed/calculated correction, CSII (C-14), the intrapartum table (C-15 gap surfaced), the CGM adapter (§6: scorecard, HS-09/10/11 guards, tagged-value derivation feeding the titration engine, basal-hyperglycemia signal, phenotype triggers), Postpartum (§13: all dose methods shown side by side per C-13, target tiers, lactation guidance), Hypoglycemia (§12: C-01 threshold check, outpatient Rule of 15, the UC23 inpatient rescue ladder routed by consciousness/PO/BG, glucagon, symptoms, unawareness), Steroids (§9: **Mathiesen ER** betamethasone day-by-day insulin adjustment with taper-back safety), and DKA (§10: the fluid/electrolyte protocol as reference plus the **Yale IV insulin infusion** drip calculator — user-requested; UC23 orders otherwise not automated, per HS-14).
 
-**10 tabs.** The AID/HCL engine (§8) exists and is tested in `dosing.ts` (`aidTargetCheck`, `AID_SYSTEMS`, `AID_RECOMMENDATIONS`, `AID_EFFECTS`, …) but its tab was removed from the UI at the user's request — resurface it by re-adding an `AidTab`. Other engine functions are likewise tested but not currently surfaced (`dkaDiagnosis`, `dkaIcuCriteria`, `steroidEpisode`, `steroidBgAction`). See spec §18 for clinical gaps the four sources do not cover (twins, bariatric, CKD, MODY, device-specific AID targets, etc.) — future work needs additional references.
+**9 tabs**, in dropdown order: Start · Adjust · Pump · Steroids · Labor · DKA · Postpartum · CGM · Hypo. Several engine capabilities remain implemented and tested in `dosing.ts` but are **not currently surfaced in the UI** (their tabs were removed at the user's request; resurface by re-adding a tab): the pre-meal **correction** (`correctionDose`, `icf`, `icr`, `uc23FixedCorrection`), the **AID/HCL** engine (`aidTargetCheck`, `AID_SYSTEMS`, `AID_RECOMMENDATIONS`, `AID_EFFECTS`, …), and `dkaDiagnosis`, `dkaIcuCriteria`, `steroidEpisode`, `steroidBgAction`. See spec §18 for clinical gaps the four sources do not cover (twins, bariatric, CKD, MODY, device-specific AID targets, etc.) — future work needs additional references.

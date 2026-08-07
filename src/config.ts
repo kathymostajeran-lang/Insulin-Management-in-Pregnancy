@@ -81,13 +81,13 @@ export const EMPTY_INPUTS: PatientInputs = {
 export interface GlycemicWindow {
   label: string;
   target: string;
-  drives: string;
 }
 
-/** ADA26 goals shown on the Adjust tab. Source: insulin_parameters.json. */
+/** ADA26 pregnancy goals shown on the Adjust tab. Source: insulin_parameters.json. */
 export const GLYCEMIC_TARGETS: GlycemicWindow[] = [
-  { label: "Fasting and pre-prandial", target: "70–95", drives: "Bedtime NPH" },
-  { label: "1 hour after start of meal", target: "110–140", drives: "Meal bolus" },
+  { label: "Fasting / pre-prandial", target: "70–95" },
+  { label: "1-h postprandial", target: "110–140" },
+  { label: "2-h postprandial", target: "100–120" },
 ];
 
 export const HYPO_THRESHOLD_MGDL = APP_CONFIG.hypoThresholdMeter; // ADA26 <70 meter

@@ -17,10 +17,9 @@ import {
   type ObesityDosing,
 } from "./config";
 import type { Config, TDDSchedule } from "./logic/dosing";
-import { deriveModel } from "./model";
+import { deriveModel, bmiCategory } from "./model";
 import { NumberField, Seg, Labeled } from "./ui/controls";
 import { StartTab } from "./ui/StartTab";
-import { CorrectTab } from "./ui/CorrectTab";
 import { LaborTab } from "./ui/LaborTab";
 import { AdjustTab } from "./ui/AdjustTab";
 import { HypoTab } from "./ui/HypoTab";
@@ -32,15 +31,14 @@ import { PostpartumTab } from "./ui/PostpartumTab";
 
 const TABS = [
   { id: "start", label: "Start", Comp: StartTab },
-  { id: "correct", label: "Correct", Comp: CorrectTab },
-  { id: "labor", label: "Labor", Comp: LaborTab },
   { id: "adjust", label: "Adjust", Comp: AdjustTab },
-  { id: "hypo", label: "Hypo", Comp: HypoTab },
-  { id: "steroids", label: "Steroids", Comp: SteroidsTab },
-  { id: "dka", label: "DKA", Comp: DkaTab },
-  { id: "cgm", label: "CGM", Comp: CgmTab },
   { id: "pump", label: "Pump", Comp: PumpTab },
+  { id: "steroids", label: "Steroids", Comp: SteroidsTab },
+  { id: "labor", label: "Labor", Comp: LaborTab },
+  { id: "dka", label: "DKA", Comp: DkaTab },
   { id: "postpartum", label: "Postpartum", Comp: PostpartumTab },
+  { id: "cgm", label: "CGM", Comp: CgmTab },
+  { id: "hypo", label: "Hypo", Comp: HypoTab },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -76,8 +74,9 @@ export function App() {
   const activeLabel = TABS.find((t) => t.id === active)!.label;
   const inputSummary =
     inputs.weight != null
-      ? `${inputs.weight} ${inputs.unit} · ${inputs.gaWeeks ?? "–"} wk · ${config.tddSchedule}`
-      : "Tap to enter patient details";
+      ? `${inputs.weight} ${inputs.unit} · ${inputs.gaWeeks ?? "–"} wk`
+      : "tap to enter details";
+  const bmiCat = model.bmi != null ? bmiCategory(model.bmi) : null;
 
   return (
     <div className="app">
@@ -143,20 +142,37 @@ export function App() {
             label="Height · in, optional"
             value={inputs.heightIn}
             onChange={(v) => patch({ heightIn: v })}
-            hint={model.pctDbw ? `${Math.round(model.pctDbw)}% DBW` : "for obesity dosing"}
+            hint={
+              model.bmi != null
+                ? `BMI ${model.bmi}${model.pctDbw ? ` · ${Math.round(model.pctDbw)}% DBW` : ""}`
+                : "for BMI & obesity dosing"
+            }
             min={0}
           />
           <Labeled label="Stage">
             <Seg name="stage" value={inputs.stage} options={STAGE_OPTIONS} onChange={(stage) => patch({ stage })} />
           </Labeled>
-          <Labeled label="Obesity dosing · >150% DBW" hint="UC23 branch — clinician-applied multiplier">
-            <Seg
-              name="obesity"
-              value={inputs.obesityDosing}
-              options={OBESITY_OPTIONS}
-              onChange={(obesityDosing) => patch({ obesityDosing })}
-            />
-          </Labeled>
+          <div style={{ gridColumn: "1 / -1" }}>
+            {bmiCat ? (
+              <div style={{ marginBottom: "var(--space-2)", fontSize: 14 }}>
+                BMI <span className="num" style={{ fontSize: 18 }}>{model.bmi}</span>{" "}
+                <span className={bmiCat.obese ? undefined : "text-muted"}>— {bmiCat.label}</span>{" "}
+                {bmiCat.obese ? <span className="tag tag-accent">obese</span> : null}
+              </div>
+            ) : (
+              <div className="text-muted" style={{ marginBottom: "var(--space-2)", fontSize: 13 }}>
+                Enter weight and height for BMI.
+              </div>
+            )}
+            <Labeled label="Obesity dosing · >150% DBW" hint="UC23 branch — clinician-applied multiplier">
+              <Seg
+                name="obesity"
+                value={inputs.obesityDosing}
+                options={OBESITY_OPTIONS}
+                onChange={(obesityDosing) => patch({ obesityDosing })}
+              />
+            </Labeled>
+          </div>
         </div>
 
         {/* Config: TDD schedule switch (C-02) + demo/clear */}

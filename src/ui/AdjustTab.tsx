@@ -5,7 +5,7 @@
  */
 import { useState } from "react";
 import { conventionalNphShort, titratePattern, type StandingRegimen, type WindowState } from "../logic/dosing";
-import { GLYCEMIC_TARGETS, HYPO_THRESHOLD_MGDL, TITRATION_STEPS } from "../config";
+import { HYPO_THRESHOLD_MGDL, TITRATION_STEPS, GLYCEMIC_TARGETS } from "../config";
 import { Kicker, NumberField, Seg, Alert, Cite } from "./controls";
 import type { TabProps } from "./types";
 
@@ -51,7 +51,7 @@ export function AdjustTab({ model }: TabProps) {
   return (
     <>
       <section className="card elev-sm">
-        <div className="card-kicker">Glycemic targets · ADA goal</div>
+        <div className="card-kicker">Glycemic targets · ADA26</div>
         <table className="dtab">
           <tbody>
             {GLYCEMIC_TARGETS.map((t) => (
@@ -60,12 +60,12 @@ export function AdjustTab({ model }: TabProps) {
                 <td className="num" style={{ textAlign: "right" }}>{t.target}</td>
               </tr>
             ))}
-            <tr>
-              <td>Hypoglycemia threshold</td>
-              <td className="num" style={{ textAlign: "right" }}>&lt; {HYPO_THRESHOLD_MGDL}</td>
-            </tr>
+            <tr><td>Hypoglycemia threshold</td><td className="num" style={{ textAlign: "right" }}>&lt; {HYPO_THRESHOLD_MGDL}</td></tr>
           </tbody>
         </table>
+        <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
+          Use either the 1-h or the 2-h postprandial target, not both.
+        </p>
       </section>
 
       <section>
