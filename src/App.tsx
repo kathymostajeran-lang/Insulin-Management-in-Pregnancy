@@ -4,6 +4,13 @@
  * Owns patient inputs, the persistent TDD banner, and tab routing. It wires
  * inputs → dosing.ts (via model.ts) → the active tab. It contains no clinical
  * rules itself (CLAUDE.md §3).
+ *
+ * Usability posture (from clinician faculty feedback that the app was "complex
+ * to the point that if you know how to use it, you don't need it"):
+ *  - Boots on a guided plain-language menu, not a pre-computed demo patient.
+ *  - The patient-inputs form and the TDD banner appear only on the modules that
+ *    actually consume them, so the other modules aren't cluttered by inert fields.
+ *  - Expert/institutional knobs live behind an "Advanced" disclosure.
  */
 import { useMemo, useState } from "react";
 import {
@@ -29,19 +36,47 @@ import { CgmTab } from "./ui/CgmTab";
 import { PumpTab } from "./ui/PumpTab";
 import { PostpartumTab } from "./ui/PostpartumTab";
 
+/**
+ * Home-menu groups. Urgent (low sugar, DKA) is its own bucket so time-critical
+ * modules aren't buried among elective ones.
+ */
+const GROUPS = [
+  { id: "everyday", label: "Everyday dosing" },
+  { id: "urgent", label: "Urgent" },
+  { id: "delivery", label: "Around delivery" },
+  { id: "monitoring", label: "Setup & monitoring" },
+] as const;
+
+/**
+ * Every module carries a plain-language `title` and a "use this when…" line so a
+ * clinician who doesn't already know the workflow can be routed to the right
+ * place from the guided home menu. `needsInputs` = the module reads the shared
+ * patient form (weight/GA); `showsTdd` = it reads the initiation TDD. Modules
+ * without those flags render their own inputs and get no shared form/banner.
+ */
 const TABS = [
-  { id: "start", label: "Start", Comp: StartTab },
-  { id: "adjust", label: "Adjust", Comp: AdjustTab },
-  { id: "pump", label: "Pump", Comp: PumpTab },
-  { id: "steroids", label: "Steroids", Comp: SteroidsTab },
-  { id: "labor", label: "Labor", Comp: LaborTab },
-  { id: "dka", label: "DKA", Comp: DkaTab },
-  { id: "postpartum", label: "Postpartum", Comp: PostpartumTab },
-  { id: "cgm", label: "CGM", Comp: CgmTab },
-  { id: "hypo", label: "Hypo", Comp: HypoTab },
+  { id: "start", label: "Start", group: "everyday", needsInputs: true, showsTdd: true, Comp: StartTab,
+    title: "Start insulin", when: "Begin insulin in someone not yet on it — builds a starting schedule from weight and gestational age." },
+  { id: "adjust", label: "Adjust", group: "everyday", needsInputs: true, showsTdd: true, Comp: AdjustTab,
+    title: "Adjust the doses", when: "Already on insulin? Fine-tune each dose from the week's home glucose readings." },
+  { id: "hypo", label: "Low sugar", group: "urgent", needsInputs: false, showsTdd: false, Comp: HypoTab,
+    title: "Low blood sugar", when: "Treat a low now (Rule of 15) and the inpatient rescue steps." },
+  { id: "dka", label: "DKA", group: "urgent", needsInputs: false, showsTdd: false, Comp: DkaTab,
+    title: "DKA", when: "Diabetic ketoacidosis: IV insulin drip, fluids, and potassium." },
+  { id: "labor", label: "Labor", group: "delivery", needsInputs: false, showsTdd: false, Comp: LaborTab,
+    title: "During labor", when: "IV insulin infusion and glucose targets for the intrapartum period." },
+  { id: "postpartum", label: "Postpartum", group: "delivery", needsInputs: true, showsTdd: false, Comp: PostpartumTab,
+    title: "After delivery", when: "Re-set insulin for the first days postpartum, including breastfeeding targets." },
+  { id: "steroids", label: "Steroids", group: "delivery", needsInputs: false, showsTdd: false, Comp: SteroidsTab,
+    title: "Steroids were given", when: "Betamethasone for fetal lungs raises insulin needs — a day-by-day plan." },
+  { id: "pump", label: "Pump", group: "monitoring", needsInputs: true, showsTdd: false, Comp: PumpTab,
+    title: "Insulin pump (CSII)", when: "Turn a total daily dose into pump basal-rate and bolus settings." },
+  { id: "cgm", label: "CGM", group: "monitoring", needsInputs: false, showsTdd: false, Comp: CgmTab,
+    title: "CGM report", when: "Read a continuous-glucose summary and turn it into dose changes." },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
+type View = TabId | "home";
 
 const UNIT_OPTIONS: ReadonlyArray<{ value: Unit; label: string }> = [
   { value: "lb", label: "lb" },
@@ -59,24 +94,55 @@ const OBESITY_OPTIONS: ReadonlyArray<{ value: ObesityDosing; label: string }> = 
 ];
 
 export function App() {
-  const [inputs, setInputs] = useState<PatientInputs>(DEMO_PREFILL);
+  const [inputs, setInputs] = useState<PatientInputs>(EMPTY_INPUTS);
+  const [isDemo, setIsDemo] = useState(false);
   const [config, setConfig] = useState<Config>(APP_CONFIG);
-  const [active, setActive] = useState<TabId>("start");
-  const [inputsOpen, setInputsOpen] = useState(true);
+  const [active, setActive] = useState<View>("home");
+  const [inputsOpen, setInputsOpen] = useState(false);
 
   const model = useMemo(() => deriveModel(inputs, config), [inputs, config]);
 
+  // Any real edit clears the "demonstration data" flag.
   function patch(p: Partial<PatientInputs>) {
     setInputs((prev) => ({ ...prev, ...p }));
+    setIsDemo(false);
+  }
+  function loadDemo() {
+    setInputs(DEMO_PREFILL);
+    setIsDemo(true);
+  }
+  function clearInputs() {
+    setInputs(EMPTY_INPUTS);
+    setIsDemo(false);
   }
 
-  const ActiveComp = TABS.find((t) => t.id === active)!.Comp;
-  const activeLabel = TABS.find((t) => t.id === active)!.label;
+  // Navigate: open the patient-inputs panel inside a module that uses it, keep
+  // it closed on the home menu so the landing leads with the guided choices.
+  function go(view: View) {
+    setActive(view);
+    const t = view === "home" ? null : TABS.find((x) => x.id === view)!;
+    setInputsOpen(!!t?.needsInputs);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+  }
+
+  const activeTab = active === "home" ? null : TABS.find((t) => t.id === active)!;
+  const ActiveComp = activeTab?.Comp;
+  const activeLabel = activeTab?.label ?? "Menu";
+  const needsInputs = !!activeTab?.needsInputs;
+  const showsTdd = !!activeTab?.showsTdd;
+
   const inputSummary =
     inputs.weight != null
-      ? `${inputs.weight} ${inputs.unit} · ${inputs.gaWeeks ?? "–"} wk`
-      : "tap to enter details";
+      ? `${inputs.weight} ${inputs.unit}${inputs.gaWeeks != null ? ` · ${inputs.gaWeeks} wk` : ""}`
+      : "tap to enter weight & dates";
   const bmiCat = model.bmi != null ? bmiCategory(model.bmi) : null;
+  // Advisory unit-mix-up catch: flag a body weight well outside plausible range.
+  const weightWarn =
+    model.weightKg != null && (model.weightKg < 30 || model.weightKg > 250)
+      ? model.weightKg < 30
+        ? "unusually low"
+        : "unusually high"
+      : null;
 
   return (
     <div className="app">
@@ -87,127 +153,192 @@ export function App() {
         </div>
       </header>
 
-      {/* ── Sticky module switcher + compact TDD ───────────────────── */}
-      <div className="topbar">
-        <select
-          className="switcher"
-          aria-label="Module"
-          value={active}
-          onChange={(e) => setActive(e.target.value as TabId)}
-        >
-          {TABS.map((t) => (
-            <option key={t.id} value={t.id}>{t.label}</option>
-          ))}
-        </select>
-        <div className="topbar-tdd" aria-live="polite">
-          {model.tdd ? (
-            <><span className="num">{model.tdd.tdd}</span> <span className="topbar-tdd-unit">u/24h</span></>
-          ) : (
-            <span className="num" style={{ opacity: 0.35 }}>—</span>
-          )}
+      {/* ── Sticky module switcher + compact TDD (inside a module only) ─── */}
+      {active !== "home" ? (
+        <div className="topbar">
+          <select
+            className="switcher"
+            aria-label="Go to"
+            value={active}
+            onChange={(e) => go(e.target.value as View)}
+          >
+            <option value="home">☰　Menu</option>
+            {GROUPS.map((grp) => (
+              <optgroup key={grp.id} label={grp.label}>
+                {TABS.filter((t) => t.group === grp.id).map((t) => (
+                  <option key={t.id} value={t.id}>{t.title}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          {showsTdd ? (
+            <div className="topbar-tdd" aria-live="polite">
+              {isDemo ? <span className="demo-badge demo-badge--sm" title="Demonstration data — not your patient">DEMO</span> : null}
+              {model.tdd ? (
+                <><span className="num">{model.tdd.tdd}</span> <span className="topbar-tdd-unit">u/24h</span></>
+              ) : (
+                <span className="num" style={{ opacity: 0.35 }}>—</span>
+              )}
+            </div>
+          ) : null}
         </div>
-      </div>
+      ) : null}
 
-      {/* ── Collapsible patient inputs ─────────────────────────────── */}
-      <details className="inputs-panel" open={inputsOpen} onToggle={(e) => setInputsOpen(e.currentTarget.open)}>
-        <summary className="inputs-summary">
-          <span className="inputs-summary-label">Patient inputs</span>
-          <span className="text-muted inputs-summary-detail">{inputSummary}</span>
-        </summary>
-        <div className="view" style={{ paddingTop: "var(--space-3)", paddingBottom: 0 }}>
-          <TddBanner model={model} />
-        </div>
-        <section className="view" style={{ paddingBottom: "var(--space-4)" }}>
-          <div className="rail">
-          <NumberField
-            label={`Current weight · ${inputs.unit}`}
-            value={inputs.weight}
-            onChange={(v) => patch({ weight: v })}
-            hint={model.weightKg ? `${model.weightKg.toFixed(1)} kg` : undefined}
-            min={0}
-          />
-          <Labeled label="Units">
-            <Seg name="unit" value={inputs.unit} options={UNIT_OPTIONS} onChange={(unit) => patch({ unit })} />
-          </Labeled>
-          <NumberField
-            label="Gestational age · wk"
-            value={inputs.gaWeeks}
-            onChange={(v) => patch({ gaWeeks: v })}
-            hint={model.gaWeeks !== null ? trimesterHint(model.gaWeeks) : undefined}
-            min={0}
-            max={42}
-            step={0.1}
-          />
-          <NumberField
-            label="Height · in, optional"
-            value={inputs.heightIn}
-            onChange={(v) => patch({ heightIn: v })}
-            hint={
-              model.bmi != null
-                ? `BMI ${model.bmi}${model.pctDbw ? ` · ${Math.round(model.pctDbw)}% DBW` : ""}`
-                : "for BMI & obesity dosing"
-            }
-            min={0}
-          />
-          <Labeled label="Stage">
-            <Seg name="stage" value={inputs.stage} options={STAGE_OPTIONS} onChange={(stage) => patch({ stage })} />
-          </Labeled>
-          <div style={{ gridColumn: "1 / -1" }}>
-            {bmiCat ? (
-              <div style={{ marginBottom: "var(--space-2)", fontSize: 14 }}>
-                BMI <span className="num" style={{ fontSize: 18 }}>{model.bmi}</span>{" "}
-                <span className={bmiCat.obese ? undefined : "text-muted"}>— {bmiCat.label}</span>{" "}
-                {bmiCat.obese ? <span className="tag tag-accent">obese</span> : null}
-              </div>
-            ) : (
-              <div className="text-muted" style={{ marginBottom: "var(--space-2)", fontSize: 13 }}>
-                Enter weight and height for BMI.
-              </div>
-            )}
-            <Labeled label="Obesity dosing · >150% DBW" hint="UC23 branch — clinician-applied multiplier">
-              <Seg
-                name="obesity"
-                value={inputs.obesityDosing}
-                options={OBESITY_OPTIONS}
-                onChange={(obesityDosing) => patch({ obesityDosing })}
+      {/* ── Collapsible patient inputs (only where a module consumes them) ── */}
+      {needsInputs ? (
+        <details className="inputs-panel" open={inputsOpen} onToggle={(e) => setInputsOpen(e.currentTarget.open)}>
+          <summary className="inputs-summary">
+            <span className="inputs-summary-label">Patient inputs</span>
+            {isDemo ? <span className="demo-badge">Demonstration data — not your patient</span> : null}
+            <span className="text-muted inputs-summary-detail">{inputSummary}</span>
+          </summary>
+          {showsTdd ? (
+            <div className="view" style={{ paddingTop: "var(--space-3)", paddingBottom: 0 }}>
+              <TddBanner model={model} />
+            </div>
+          ) : null}
+          <section className="view" style={{ paddingBottom: "var(--space-4)" }}>
+            <div className="rail">
+              <NumberField
+                label={`Current weight · ${inputs.unit} · required`}
+                value={inputs.weight}
+                onChange={(v) => patch({ weight: v })}
+                hint={inputs.weight == null ? "Required" : model.weightKg ? `${model.weightKg.toFixed(1)} kg` : undefined}
+                min={0}
               />
-            </Labeled>
-          </div>
-        </div>
+              <Labeled label="Units">
+                <Seg name="unit" value={inputs.unit} options={UNIT_OPTIONS} onChange={(unit) => patch({ unit })} />
+              </Labeled>
+              <NumberField
+                label="Gestational age · wk · required"
+                value={inputs.gaWeeks}
+                onChange={(v) => patch({ gaWeeks: v })}
+                hint={inputs.gaWeeks == null ? "Required" : model.gaWeeks !== null ? trimesterHint(model.gaWeeks) : undefined}
+                min={0}
+                max={42}
+                step={0.1}
+              />
+              <NumberField
+                label="Height · in, optional"
+                value={inputs.heightIn}
+                onChange={(v) => patch({ heightIn: v })}
+                hint={
+                  model.bmi != null
+                    ? `BMI ${model.bmi}${model.pctDbw ? ` · ${Math.round(model.pctDbw)}% of ideal wt` : ""}`
+                    : "for BMI & obesity dosing"
+                }
+                min={0}
+              />
+              <Labeled label="Stage">
+                <Seg name="stage" value={inputs.stage} options={STAGE_OPTIONS} onChange={(stage) => patch({ stage })} />
+              </Labeled>
+              <div style={{ gridColumn: "1 / -1" }}>
+                {weightWarn ? (
+                  <div className="input-warn" role="alert" style={{ marginBottom: "var(--space-2)" }}>
+                    Check the units — {model.weightKg!.toFixed(0)} kg is {weightWarn}. Did you mean {inputs.unit === "kg" ? "pounds" : "kilograms"}?
+                  </div>
+                ) : null}
+                {bmiCat ? (
+                  <div style={{ marginBottom: "var(--space-2)", fontSize: 14 }}>
+                    BMI <span className="num" style={{ fontSize: 18 }}>{model.bmi}</span>{" "}
+                    <span className={bmiCat.obese ? undefined : "text-muted"}>— {bmiCat.label}</span>{" "}
+                    {bmiCat.obese ? <span className="tag tag-accent">obese</span> : null}
+                  </div>
+                ) : (
+                  <div className="text-muted" style={{ marginBottom: "var(--space-2)", fontSize: 13 }}>
+                    Enter weight and height for BMI.
+                  </div>
+                )}
+              </div>
+            </div>
 
-        {/* Config: TDD schedule switch (C-02) + demo/clear */}
-        <div className="rail" style={{ marginTop: "var(--space-3)" }}>
-          <Labeled label="TDD schedule · C-02" hint="Recommended default: VB24">
-            <Seg
-              name="schedule"
-              value={config.tddSchedule}
-              options={TDD_SCHEDULE_OPTIONS.map((o) => ({ value: o.value, label: o.value }))}
-              onChange={(tddSchedule: TDDSchedule) => setConfig((c) => ({ ...c, tddSchedule }))}
-            />
-          </Labeled>
-          <div className="field" style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
-            <button className="btn btn-secondary" onClick={() => setInputs(DEMO_PREFILL)}>
-              Demo prefill
-            </button>
-            <button className="btn btn-ghost" onClick={() => setInputs(EMPTY_INPUTS)}>
-              Clear
-            </button>
-          </div>
-        </div>
-        </section>
-      </details>
+            {/* Advanced / institutional knobs — defaults preserved; hidden so a
+                non-expert isn't invited to flip a policy switch by accident. */}
+            <details className="advanced">
+              <summary>Advanced · institutional settings</summary>
+              <div className="rail" style={{ marginTop: "var(--space-3)" }}>
+                <Labeled label="Guideline set" hint="Default: Valent & Barbour 2024">
+                  <Seg
+                    name="schedule"
+                    value={config.tddSchedule}
+                    options={TDD_SCHEDULE_OPTIONS.map((o) => ({ value: o.value, label: o.value }))}
+                    onChange={(tddSchedule: TDDSchedule) => setConfig((c) => ({ ...c, tddSchedule }))}
+                  />
+                </Labeled>
+                <Labeled label="Weight-based dose multiplier" hint="Only if body weight > 150% of ideal (UC Cincinnati 2023)">
+                  <Seg
+                    name="obesity"
+                    value={inputs.obesityDosing}
+                    options={OBESITY_OPTIONS}
+                    onChange={(obesityDosing) => patch({ obesityDosing })}
+                  />
+                </Labeled>
+              </div>
+            </details>
 
-      <main className="view" role="tabpanel" aria-label={activeLabel}>
-        <ActiveComp model={model} config={config} inputs={inputs} />
-      </main>
+            <div className="field" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: "var(--space-3)" }}>
+              <button className="btn btn-secondary" onClick={loadDemo}>Demo prefill</button>
+              <button className="btn btn-ghost" onClick={clearInputs}>Clear</button>
+            </div>
+          </section>
+        </details>
+      ) : null}
+
+      {active === "home" || !ActiveComp ? (
+        <main className="view" aria-label="Menu">
+          <HomeMenu onPick={go} />
+        </main>
+      ) : (
+        <main className="view" role="tabpanel" aria-label={activeLabel}>
+          <button className="back-link" onClick={() => go("home")}>‹ All tasks</button>
+          <ActiveComp model={model} config={config} inputs={inputs} />
+        </main>
+      )}
 
       <footer className="safety">
-        <strong>Not a validated medical device.</strong> Decision support only. Every dose requires
-        explicit clinician confirmation; no output is executed automatically. Sources: ADA 2026 §15,
-        Endocrine Society/ESE 2025, Valent &amp; Barbour 2024, UC Cincinnati 2023. See
-        PREGNANCY_INSULIN_ALGORITHMS.md §0 and §15.
+        <p style={{ margin: "0 0 var(--space-2)" }}>
+          <strong>Not a validated medical device.</strong> Decision support only. Every dose requires
+          explicit clinician confirmation; no output is executed automatically.
+        </p>
+        <p style={{ margin: 0 }}>
+          Source keys: <strong>ADA26</strong> = ADA 2026 §15 · <strong>ES25</strong> = Endocrine
+          Society / ESE 2025 · <strong>VB24</strong> = Valent &amp; Barbour 2024 · <strong>UC23</strong> =
+          UC Cincinnati 2023. See PREGNANCY_INSULIN_ALGORITHMS.md §0 and §15.
+        </p>
       </footer>
     </div>
+  );
+}
+
+/** Guided landing menu — routes a clinician to the right module in plain
+ *  language, so knowing the tool isn't a prerequisite for using it. */
+function HomeMenu({ onPick }: { onPick: (id: TabId) => void }) {
+  return (
+    <>
+      <div className="home-hero">
+        <h2>What do you need to do?</h2>
+        <p>Pick a task and this tool walks you through it. Every number shows its source and math; nothing is prescribed for you.</p>
+      </div>
+      {GROUPS.map((grp) => {
+        const items = TABS.filter((t) => t.group === grp.id);
+        return (
+          <div className="home-group" key={grp.id}>
+            <div className="home-group-label kick">{grp.label}</div>
+            <div className="home-cards">
+              {items.map((t) => (
+                <button className="home-card" key={t.id} onClick={() => onPick(t.id)}>
+                  <span>
+                    <span className="home-card-title">{t.title}</span>
+                    <span className="home-card-when">{t.when}</span>
+                  </span>
+                  <span className="home-card-go" aria-hidden="true">›</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </>
   );
 }
 

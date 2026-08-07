@@ -78,11 +78,11 @@ export function PostpartumTab({ model }: TabProps) {
         )}
       </section>
 
-      <Alert title="Different denominators — not interchangeable (C-13)">
+      <Alert title="Different denominators — not interchangeable">
         <p style={{ marginBottom: 0 }}>
-          End-pregnancy, third-trimester, and prepregnancy TDD are different baselines, so these
-          methods can diverge sharply. The app does <strong>not</strong> auto-select — the clinician
-          must choose the method and confirm the dose.<Cite> spec §13 · C-13</Cite>
+          End-pregnancy, third-trimester, and prepregnancy total daily dose are different baselines,
+          so these methods can diverge sharply. The app does <strong>not</strong> auto-select — the
+          clinician must choose the method and confirm the dose.
         </p>
       </Alert>
 
@@ -112,8 +112,8 @@ export function PostpartumTab({ model }: TabProps) {
         <div className="card-kicker">By diabetes type</div>
         <table className="dtab">
           <tbody>
-            <tr><td>GDM A1 / A2</td><td>Stop insulin after placenta; check FBG + 1-h PP until discharge. Consider metformin if BG &gt; 180 despite diet.</td></tr>
-            <tr><td>T1DM / T2DM</td><td>Resume CHO-counting (pregnancy calories if lactating); restart at the selected fraction above. VB24: stop insulin immediately in GDM/T2DM if prepregnancy A1C &lt; 7.5%.</td></tr>
+            <tr><td>GDM A1 / A2</td><td>Stop insulin after placenta; check fasting + 1-h after-meal glucose until discharge. Consider metformin if BG &gt; 180 despite diet.</td></tr>
+            <tr><td>T1DM / T2DM</td><td>Resume carbohydrate-counting (pregnancy calories if lactating); restart at the selected fraction above. VB24: stop insulin immediately in GDM/T2DM if prepregnancy A1C &lt; 7.5%.</td></tr>
           </tbody>
         </table>
         <div className="card-meta"><Cite>UC23 · VB24</Cite></div>
@@ -122,8 +122,8 @@ export function PostpartumTab({ model }: TabProps) {
       <Alert title="Lactation — overnight hypoglycemia risk">
         <p style={{ marginBottom: 0 }}>
           Breastfeeding increases overnight hypoglycemia risk; check BG before nighttime feeds and
-          take 15 g CHO if &lt; 100 mg/dL. Degludec must be reduced &gt; 2–3 days before delivery to
-          avoid postpartum lows.<Cite> ADA26 · UC23 · VB24</Cite>
+          take 15 g fast-acting carbohydrate if &lt; 100 mg/dL. Degludec must be reduced &gt; 2–3 days
+          before delivery to avoid postpartum lows.<Cite> ADA26 · UC23 · VB24</Cite>
         </p>
       </Alert>
     </>

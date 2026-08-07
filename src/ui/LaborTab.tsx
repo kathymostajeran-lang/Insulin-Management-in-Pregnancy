@@ -47,11 +47,10 @@ export function LaborTab() {
       </section>
 
       {gap ? (
-        <Alert title="BG 80–99 mg/dL — no published rule (C-15)" stop>
+        <Alert title="BG 80–99 mg/dL — no published rule" stop>
           <p style={{ marginBottom: 0 }}>
             The guide's table has no 80–99 row. Restart the infusion once BG is &gt; 80 mg/dL twice.
             This band must be resolved by institutional policy before use (committee sign-off required).
-            <Cite> spec §11 · C-15</Cite>
           </p>
         </Alert>
       ) : null}
@@ -71,7 +70,7 @@ export function LaborTab() {
             </tr>
             <tr data-active={bg !== null && bg >= 80 && bg <= 99}>
               <td>80–99</td>
-              <td style={{ textAlign: "right", color: "var(--color-accent)" }}>No rule — see C-15</td>
+              <td style={{ textAlign: "right", color: "var(--color-accent)" }}>No rule — needs policy</td>
             </tr>
             {UC23_INTRAPARTUM.filter((b) => b.lo >= 100).map((b) => {
               const isActive = bg !== null && bg >= b.lo && bg <= b.hi;
@@ -87,23 +86,23 @@ export function LaborTab() {
           </tbody>
         </table>
         <div className="card-meta">
-          <Cite>UC23 intrapartum table · target {UNRESOLVED_POLICY.INTRAPARTUM_BAND_80_99 ? "" : ""}70–110 (VB24, C-12)</Cite>
+          <Cite>UC23 intrapartum table · target 70–110 (VB24)</Cite>
         </div>
       </section>
 
-      <section className="card">
-        <div className="card-kicker">Active labor rules</div>
-        <table className="dtab">
+      <details className="ref-details card">
+        <summary>Active labor rules</summary>
+        <table className="dtab" style={{ marginTop: 8 }}>
           <tbody>
             <tr><td>Target range</td><td style={{ textAlign: "right" }}>60–100 (UC23) · 70–110 (VB24)</td></tr>
             <tr><td>BG checks</td><td style={{ textAlign: "right" }}>hourly active · 2 h latent</td></tr>
-            <tr><td>SC insulin</td><td style={{ textAlign: "right" }}>Discontinue all; hold and keep NPO</td></tr>
+            <tr><td>Injected (SC) insulin</td><td style={{ textAlign: "right" }}>Discontinue all; hold and keep nothing by mouth (NPO)</td></tr>
             <tr><td>Start the drip when</td><td style={{ textAlign: "right" }}>BG 110–140 × 2, or &gt; 140 × 1</td></tr>
             <tr><td>Hypoglycemia</td><td style={{ textAlign: "right" }}>Stop insulin, call MD, follow protocol</td></tr>
-            <tr><td>Back to SC split dose</td><td style={{ textAlign: "right" }}>Increase TDD by 25%</td></tr>
+            <tr><td>Back to injected split dose</td><td style={{ textAlign: "right" }}>Increase total daily dose by 25%</td></tr>
           </tbody>
         </table>
-      </section>
+      </details>
     </>
   );
 }

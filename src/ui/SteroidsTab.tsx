@@ -33,7 +33,7 @@ export function SteroidsTab() {
           <NumberField label="Breakfast · units" value={base.breakfast} onChange={(v) => patchBase({ breakfast: v ?? 0 })} min={0} />
           <NumberField label="Lunch · units" value={base.lunch} onChange={(v) => patchBase({ lunch: v ?? 0 })} min={0} />
           <NumberField label="Dinner · units" value={base.dinner} onChange={(v) => patchBase({ dinner: v ?? 0 })} min={0} />
-          <NumberField label="HS · units" value={base.hs} onChange={(v) => patchBase({ hs: v ?? 0 })} min={0} />
+          <NumberField label="Bedtime · units" value={base.hs} onChange={(v) => patchBase({ hs: v ?? 0 })} min={0} />
         </div>
 
         <div style={{ overflowX: "auto", marginTop: 12 }}>
@@ -45,7 +45,7 @@ export function SteroidsTab() {
                 <th style={{ textAlign: "right" }}>Breakfast</th>
                 <th style={{ textAlign: "right" }}>Lunch</th>
                 <th style={{ textAlign: "right" }}>Dinner</th>
-                <th style={{ textAlign: "right" }}>HS</th>
+                <th style={{ textAlign: "right" }}>Bedtime</th>
               </tr>
             </thead>
             <tbody>
@@ -76,7 +76,7 @@ export function SteroidsTab() {
       <Alert title="Temporary adjustment — taper back">
         <p style={{ marginBottom: 0 }}>
           This is a <strong>transient</strong> 5–7 day escalation. Do not bake it into the standing
-          regimen — taper to the pre-steroid dose by Days 6–7 and reassess.<Cite> spec §9 mitigation</Cite>
+          regimen — taper to the pre-steroid dose by Days 6–7 and reassess.
         </p>
       </Alert>
     </>

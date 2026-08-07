@@ -39,20 +39,7 @@ export function DkaTab() {
 
   return (
     <>
-      {/* ── Fluids (reference) ────────────────────────────────────── */}
-      <section className="card elev-sm">
-        <div className="card-kicker">Fluids · reference · UC23</div>
-        <table className="dtab">
-          <tbody>
-            <tr><td>Hour 1</td><td>{DKA.fluids.hour1LitersNs} L normal saline</td></tr>
-            <tr><td>Hours 2–4</td><td>{DKA.fluids.hours2to4LitersPerHour[0]}–{DKA.fluids.hours2to4LitersPerHour[1]} L / hour</td></tr>
-            <tr><td>Thereafter</td><td>{DKA.fluids.thereafterMlPerHour} mL/hr {DKA.fluids.thereafterFluid} until 80% of the deficit is corrected</td></tr>
-            <tr><td>BG &lt; {DKA.fluids.switchToD5HalfNsWhenBgLt}</td><td>change to D5 ½NS to allow the insulin infusion to continue</td></tr>
-          </tbody>
-        </table>
-      </section>
-
-      {/* ── Insulin infusion · Yale protocol (strict) ─────────────── */}
+      {/* ── Insulin infusion · Yale protocol (the actionable calculator) ── */}
       <section>
         <Kicker>Insulin infusion · Yale protocol</Kicker>
         <div className="rail" style={{ marginTop: 8 }}>
@@ -81,32 +68,49 @@ export function DkaTab() {
         </div>
       </section>
 
-      {/* ── Yale protocol notes ───────────────────────────────────── */}
-      <section className="card">
-        <div className="card-kicker">Yale protocol notes</div>
-        <table className="dtab">
+      {/* ── Always-visible safety caveats ─────────────────────────── */}
+      <Alert title="Before you rely on this drip">
+        <ul style={{ margin: "4px 0 0 18px", padding: 0 }}>
+          <li>General ICU protocol — <strong>not</strong> tailored for DKA/HHS. Consult MD if BG ≥ {YALE.consultIfBgGte} mg/dL or the response is unexpected.</li>
+          <li>Continue insulin until the anion gap and bicarbonate normalize — <strong>not</strong> until glucose normalizes (UC23).</li>
+        </ul>
+      </Alert>
+
+      {/* ── Supporting reference (collapsed) ──────────────────────── */}
+      <details className="ref-details card elev-sm">
+        <summary>Fluids · UC23</summary>
+        <table className="dtab" style={{ marginTop: 8 }}>
           <tbody>
-            <tr><td>Infusion</td><td>{YALE.mix}; prime {YALE.primeMl} mL of tubing; titrate in {YALE.incrementUHr} U/hr increments</td></tr>
-            <tr><td>Monitoring</td><td>check BG hourly until stable (3 consecutive in range), then q2h</td></tr>
-            <tr><td>Consult MD</td><td>if BG ≥ {YALE.consultIfBgGte} mg/dL, or the response is unexpected — the protocol is a general ICU protocol, <strong>not</strong> tailored for DKA/HHS</td></tr>
-            <tr><td>Drip endpoint · UC23</td><td>continue insulin until the anion gap and bicarbonate normalize — <strong>not</strong> until glucose normalizes</td></tr>
+            <tr><td>Hour 1</td><td>{DKA.fluids.hour1LitersNs} L normal saline</td></tr>
+            <tr><td>Hours 2–4</td><td>{DKA.fluids.hours2to4LitersPerHour[0]}–{DKA.fluids.hours2to4LitersPerHour[1]} L / hour</td></tr>
+            <tr><td>Thereafter</td><td>{DKA.fluids.thereafterMlPerHour} mL/hr {DKA.fluids.thereafterFluid} until 80% of the deficit is corrected</td></tr>
+            <tr><td>BG &lt; {DKA.fluids.switchToD5HalfNsWhenBgLt}</td><td>change to D5 ½NS to allow the insulin infusion to continue</td></tr>
           </tbody>
         </table>
-      </section>
+      </details>
 
-      {/* ── Potassium & electrolytes (reference) ──────────────────── */}
-      <section className="card">
-        <div className="card-kicker">Potassium &amp; electrolytes · reference · UC23</div>
-        <table className="dtab">
+      <details className="ref-details card">
+        <summary>Potassium &amp; electrolytes · UC23</summary>
+        <table className="dtab" style={{ marginTop: 8 }}>
           <tbody>
             <tr><td>Potassium — normal / low</td><td>consider K up to {DKA.potassium.normalOrLowMeqPerHourMax[0]}–{DKA.potassium.normalOrLowMeqPerHourMax[1]} mEq/hr</td></tr>
             <tr><td>Potassium — elevated</td><td>no supplemental K until normal, then 20–30 mEq/L</td></tr>
             <tr><td>Phosphate</td><td>replace if &lt; {DKA.phosphateReplaceIfLtMgDl} mg/dL, or cardiac dysfunction, or obtunded</td></tr>
-            <tr><td>Monitoring</td><td>BG q1h · vitals q1–2h · electrolytes/AG/VBG/ketones until pH &amp; AG normalize · continuous ECG + pulse ox</td></tr>
-            <tr><td>Fetal</td><td>CEFM if &gt; 24 weeks, else FHT q4–8h · Foley + I&amp;O hourly · consult NICU, Anesthesia</td></tr>
+            <tr><td>Monitoring</td><td>BG q1h · vitals q1–2h · electrolytes/anion gap/venous blood gas/ketones until pH &amp; anion gap normalize · continuous ECG + pulse ox</td></tr>
+            <tr><td>Fetal</td><td>continuous fetal monitoring if &gt; 24 weeks, else fetal heart tones q4–8h · Foley + strict ins/outs hourly · consult NICU, Anesthesia</td></tr>
           </tbody>
         </table>
-      </section>
+      </details>
+
+      <details className="ref-details card">
+        <summary>Yale protocol notes</summary>
+        <table className="dtab" style={{ marginTop: 8 }}>
+          <tbody>
+            <tr><td>Infusion</td><td>{YALE.mix}; prime {YALE.primeMl} mL of tubing; titrate in {YALE.incrementUHr} U/hr increments</td></tr>
+            <tr><td>Monitoring</td><td>check BG hourly until stable (3 consecutive in range), then every 2 h</td></tr>
+          </tbody>
+        </table>
+      </details>
     </>
   );
 }

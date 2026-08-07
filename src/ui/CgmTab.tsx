@@ -58,9 +58,9 @@ export function CgmTab() {
         </p>
       </Alert>
 
-      {/* ── Scorecard ─────────────────────────────────────────────── */}
+      {/* ── Step 1 · CGM summary (scorecard) ──────────────────────── */}
       <section>
-        <Kicker>CGM scorecard · ADA goals (validated for T1DM)</Kicker>
+        <Kicker>1 · Enter the CGM summary</Kicker>
         <div className="rail" style={{ marginTop: 8 }}>
           <NumberField label="Time in range 63–140 · %" value={cgm.tir} onChange={(v) => patch({ tir: v })} min={0} max={100} />
           <NumberField label="Time above 140 · %" value={cgm.tar} onChange={(v) => patch({ tar: v })} min={0} max={100} />
@@ -68,43 +68,46 @@ export function CgmTab() {
           <NumberField label="Time below 54 · %" value={cgm.tbr54} onChange={(v) => patch({ tbr54: v })} min={0} max={100} step={0.1} />
           <NumberField label="Mean glucose · mg/dL" value={cgm.meanGlucose} onChange={(v) => patch({ meanGlucose: v })} min={0} />
         </div>
-        <table className="dtab" style={{ marginTop: 12 }}>
-          <thead>
-            <tr>
-              <th>Metric</th>
-              <th style={{ textAlign: "right" }}>Value</th>
-              <th style={{ textAlign: "right" }}>Goal</th>
-              <th style={{ textAlign: "right" }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {metrics.map((m) => (
-              <tr key={m.key}>
-                <td>{m.label}</td>
-                <td className="num" style={{ textAlign: "right" }}>{m.value}{m.key === "mean" ? "" : "%"}</td>
-                <td style={{ textAlign: "right" }} className="text-muted">{m.goal}</td>
-                <td style={{ textAlign: "right" }}>
-                  {m.meets === null ? (
-                    <span className="tag tag-neutral">info</span>
-                  ) : m.meets ? (
-                    <span className="tag tag-neutral">meets</span>
-                  ) : (
-                    <span className="tag tag-accent">off goal</span>
-                  )}
-                </td>
+        <details className="ref-details" style={{ marginTop: 12 }}>
+          <summary>Scorecard vs ADA goals</summary>
+          <table className="dtab" style={{ marginTop: 8 }}>
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th style={{ textAlign: "right" }}>Value</th>
+                <th style={{ textAlign: "right" }}>Goal</th>
+                <th style={{ textAlign: "right" }}>Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="text-muted" style={{ fontSize: 12, marginTop: 8 }}>
-          Mean glucose is shown instead of GMI / estimated A1C, which is prohibited in pregnancy
-          (ADA26 15.13). Sensor ranges are endorsed for T2DM/GDM but the TIR goal amount is undefined.
-        </p>
+            </thead>
+            <tbody>
+              {metrics.map((m) => (
+                <tr key={m.key}>
+                  <td>{m.label}</td>
+                  <td className="num" style={{ textAlign: "right" }}>{m.value}{m.key === "mean" ? "" : "%"}</td>
+                  <td style={{ textAlign: "right" }} className="text-muted">{m.goal}</td>
+                  <td style={{ textAlign: "right" }}>
+                    {m.meets === null ? (
+                      <span className="tag tag-neutral">info</span>
+                    ) : m.meets ? (
+                      <span className="tag tag-neutral">meets</span>
+                    ) : (
+                      <span className="tag tag-accent">off goal</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-muted" style={{ fontSize: 12, marginTop: 8 }}>
+            Mean glucose is shown instead of GMI / estimated A1C, which is prohibited in pregnancy
+            (ADA26 15.13). Sensor ranges are endorsed for T2DM/GDM but the TIR goal amount is undefined.
+          </p>
+        </details>
       </section>
 
-      {/* ── Data-quality gate ─────────────────────────────────────── */}
+      {/* ── Step 2 · Data-quality gate ────────────────────────────── */}
       <section>
-        <Kicker>Data quality · required before any CGM-derived dose change</Kicker>
+        <Kicker>2 · Confirm data quality (required before any dose change)</Kicker>
         <div className="rail" style={{ marginTop: 8 }}>
           <NumberField label="Days of data" value={cgm.days} onChange={(v) => patch({ days: v })} min={0} hint={`≥ ${CGM_TARGETS.minDaysForTitration} required`} />
           <NumberField label="Sensor wear · %" value={cgm.wearPct} onChange={(v) => patch({ wearPct: v })} min={0} max={100} hint={`≥ ${CGM_TARGETS.minWearPctForTitration}% required`} />
@@ -112,9 +115,9 @@ export function CgmTab() {
         </div>
       </section>
 
-      {/* ── Tagged values → titration handoff ─────────────────────── */}
+      {/* ── Step 3 · Tagged values → titration handoff ────────────── */}
       <section>
-        <Kicker>CGM-derived tagged values → titration</Kicker>
+        <Kicker>3 · Tagged values for dosing</Kicker>
         <div className="rail" style={{ marginTop: 8 }}>
           <NumberField label="Fasting · median 04–07h" value={cgm.fasting} onChange={(v) => patch({ fasting: v })} min={0} />
           <NumberField label="Post-breakfast · +60 min" value={cgm.postBreakfast} onChange={(v) => patch({ postBreakfast: v })} min={0} />
@@ -143,7 +146,7 @@ export function CgmTab() {
             </div>
             <p className="text-muted" style={{ fontSize: 12, marginTop: 8 }}>
               Carry these window states to the <strong>Adjust</strong> tab — the dose change runs on
-              these tagged values, using the same engine as SMBG.
+              these tagged values, using the same engine as finger-stick (home glucose) readings.
             </p>
           </>
         ) : (
@@ -173,9 +176,9 @@ export function CgmTab() {
       </section>
 
       {/* ── Phenotype review triggers (D.3) ───────────────────────── */}
-      <section className="card elev-sm">
-        <div className="card-kicker">Phenotype review triggers · not dose changes</div>
-        <table className="dtab">
+      <details className="ref-details card elev-sm">
+        <summary>Phenotype review triggers · not dose changes</summary>
+        <table className="dtab" style={{ marginTop: 8 }}>
           <thead>
             <tr>
               <th>Cluster</th>
@@ -196,7 +199,7 @@ export function CgmTab() {
         <div className="card-meta">
           <Cite>Battarbee 2024 · distinct outcomes at similar aggregate metrics. Escalate review, not dose.</Cite>
         </div>
-      </section>
+      </details>
     </>
   );
 }

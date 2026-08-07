@@ -22,11 +22,11 @@ export function PumpTab({ model }: TabProps) {
       <section>
         <Kicker>CSII initiation · UC23</Kicker>
         <NumberField
-          label="Current MDI total daily dose · units, optional"
+          label="Current injection total daily dose · units, optional"
           value={mdiTdd}
           onChange={setMdiTdd}
           min={0}
-          hint="Pump TDD is the lower of (MDI × 0.75) and the weight-based estimate"
+          hint="Pump dose is the lower of (injection dose × 0.75) and the weight-based estimate"
         />
         <div className="rail" style={{ marginTop: 12 }}>
           <Stat label="Final pump TDD" value={`${p.finalTdd} u`} />
@@ -35,7 +35,7 @@ export function PumpTab({ model }: TabProps) {
           <Stat label="I : C ratio" value={`1 : ${p.icrGPerUnit} g`} />
         </div>
         <p className="text-muted" style={{ fontSize: 12, marginTop: 8 }}>
-          From MDI: {p.tddFromMdi ?? "—"} u · from weight: {p.tddFromWeight} u — the lower is used.
+          From injections: {p.tddFromMdi ?? "—"} u · from weight: {p.tddFromWeight} u — the lower is used.
         </p>
       </section>
 

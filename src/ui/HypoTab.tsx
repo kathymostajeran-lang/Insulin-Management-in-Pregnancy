@@ -40,7 +40,7 @@ export function HypoTab({ config }: TabProps) {
     <>
       {/* ── Threshold check ───────────────────────────────────────── */}
       <section>
-        <Kicker>Is this hypoglycemia? · C-01</Kicker>
+        <Kicker>Is this hypoglycemia?</Kicker>
         <div className="rail" style={{ marginTop: 8 }}>
           <div className="field">
             <label>Reading source</label>
@@ -73,10 +73,10 @@ export function HypoTab({ config }: TabProps) {
         <div className="card-kicker">Outpatient · Rule of 15</div>
         <table className="dtab">
           <tbody>
-            <tr><td>Treat with</td><td>{OUTPATIENT_HYPO.ruleOf15.choG} g fast-acting CHO (e.g. 4 oz apple juice)</td></tr>
+            <tr><td>Treat with</td><td>{OUTPATIENT_HYPO.ruleOf15.choG} g fast-acting carbohydrate (e.g. 4 oz apple juice)</td></tr>
             <tr><td>No more than</td><td>{OUTPATIENT_HYPO.choGramsMax} g simple sugar — avoids rebound hyperglycemia (VB24)</td></tr>
             <tr><td>Recheck</td><td>in {OUTPATIENT_HYPO.recheckMinutes[0]}–{OUTPATIENT_HYPO.recheckMinutes[1]} min; expect ≥ {OUTPATIENT_HYPO.ruleOf15.expectedRiseMgdl} mg/dL rise</td></tr>
-            <tr><td>Pre-exercise</td><td>if BG &lt; {OUTPATIENT_HYPO.preExerciseChoIfBgBelow} mg/dL, take 15 g CHO first</td></tr>
+            <tr><td>Pre-exercise</td><td>if BG &lt; {OUTPATIENT_HYPO.preExerciseChoIfBgBelow} mg/dL, take 15 g carbohydrate first</td></tr>
             <tr><td>Overnight lows</td><td>wear CGM or check a 3 AM glucose — the bedtime long/intermediate dose may need a <strong>downward</strong> adjustment</td></tr>
           </tbody>
         </table>
@@ -92,7 +92,7 @@ export function HypoTab({ config }: TabProps) {
             <Seg name="conscious" value={conscious} options={YN} onChange={setConscious} />
           </div>
           <div className="field">
-            <label>Can take PO?</label>
+            <label>Can eat or drink?</label>
             <Seg name="po" value={canPO} options={YN} onChange={setCanPO} />
           </div>
         </div>
@@ -134,7 +134,7 @@ export function HypoTab({ config }: TabProps) {
         <div className="card-kicker">Glucagon rescue</div>
         <table className="dtab">
           <tbody>
-            <tr><td>GVOKE</td><td>{GLUCAGON.gvokeMgSc} mg SC prefilled kit</td></tr>
+            <tr><td>GVOKE</td><td>{GLUCAGON.gvokeMgSc} mg under-skin (SC) prefilled kit</td></tr>
             <tr><td>BAQSIMI</td><td>{GLUCAGON.baqsimiMgIntranasal} mg intranasal prefilled kit</td></tr>
             <tr><td>Dose</td><td>use the entire dose · onset ~{GLUCAGON.onsetMinutes} min · may repeat in {GLUCAGON.mayRepeatMinutes} min</td></tr>
             <tr><td>Positioning</td><td>vomiting is common — position the patient on their side</td></tr>
