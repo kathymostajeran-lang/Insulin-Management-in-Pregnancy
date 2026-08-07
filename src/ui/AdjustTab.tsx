@@ -4,8 +4,8 @@
  * dose math is in dosing.ts (titratePattern); the tab only collects the pattern.
  */
 import { useState } from "react";
-import { conventionalNphShort, titratePattern, glycemicTargets, type StandingRegimen, type WindowState } from "../logic/dosing";
-import { HYPO_THRESHOLD_MGDL, TITRATION_STEPS, DM_TYPE_OPTIONS } from "../config";
+import { conventionalNphShort, titratePattern, type StandingRegimen, type WindowState } from "../logic/dosing";
+import { HYPO_THRESHOLD_MGDL, TITRATION_STEPS, GLYCEMIC_TARGETS } from "../config";
 import { Kicker, NumberField, Seg, Alert, Cite } from "./controls";
 import type { TabProps } from "./types";
 
@@ -22,7 +22,7 @@ const WINDOWS = [
   { key: "postDinner", label: "Post-dinner", target: "110–140", drives: "Dinner lispro" },
 ] as const;
 
-export function AdjustTab({ model, inputs }: TabProps) {
+export function AdjustTab({ model }: TabProps) {
   const [reg, setReg] = useState<StandingRegimen>({ amNph: 0, amLispro: 0, dinnerLispro: 0, bedtimeNph: 0 });
   const [step, setStep] = useState<number>(TITRATION_STEPS[0]);
   const [pattern, setPattern] = useState({
@@ -48,26 +48,23 @@ export function AdjustTab({ model, inputs }: TabProps) {
   const result = titratePattern(reg, pattern, step, tdd);
   const a = result.adjusted;
 
-  const targets = glycemicTargets(inputs.dmType);
-  const dmLabel = DM_TYPE_OPTIONS.find((o) => o.value === inputs.dmType)?.label ?? inputs.dmType;
-  const fmtT = (r: [number | null, number]) => (r[0] === null ? `≤ ${r[1]}` : `${r[0]}–${r[1]}`);
-
   return (
     <>
       <section className="card elev-sm">
-        <div className="card-kicker">Glycemic targets · {dmLabel} · ADA26</div>
+        <div className="card-kicker">Glycemic targets · ADA26</div>
         <table className="dtab">
           <tbody>
-            <tr><td>Fasting / pre-prandial</td><td className="num" style={{ textAlign: "right" }}>{fmtT(targets.fasting)}</td></tr>
-            <tr><td>1-h postprandial</td><td className="num" style={{ textAlign: "right" }}>{fmtT(targets.pp1h)}</td></tr>
-            <tr><td>2-h postprandial</td><td className="num" style={{ textAlign: "right" }}>{fmtT(targets.pp2h)}</td></tr>
+            {GLYCEMIC_TARGETS.map((t) => (
+              <tr key={t.label}>
+                <td>{t.label}</td>
+                <td className="num" style={{ textAlign: "right" }}>{t.target}</td>
+              </tr>
+            ))}
             <tr><td>Hypoglycemia threshold</td><td className="num" style={{ textAlign: "right" }}>&lt; {HYPO_THRESHOLD_MGDL}</td></tr>
           </tbody>
         </table>
         <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
-          {inputs.dmType === "GDM_A1"
-            ? "GDM A1 is diet-controlled — no lower target bound. Use either the 1-h or the 2-h postprandial target."
-            : "Use either the 1-h or the 2-h postprandial target, not both."}
+          Use either the 1-h or the 2-h postprandial target, not both.
         </p>
       </section>
 

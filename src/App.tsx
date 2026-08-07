@@ -10,14 +10,13 @@ import {
   APP_CONFIG,
   DEMO_PREFILL,
   EMPTY_INPUTS,
-  DM_TYPE_OPTIONS,
   TDD_SCHEDULE_OPTIONS,
   type PatientInputs,
   type Stage,
   type Unit,
   type ObesityDosing,
 } from "./config";
-import type { Config, TDDSchedule, DmType } from "./logic/dosing";
+import type { Config, TDDSchedule } from "./logic/dosing";
 import { deriveModel, bmiCategory } from "./model";
 import { NumberField, Seg, Labeled } from "./ui/controls";
 import { StartTab } from "./ui/StartTab";
@@ -73,11 +72,10 @@ export function App() {
 
   const ActiveComp = TABS.find((t) => t.id === active)!.Comp;
   const activeLabel = TABS.find((t) => t.id === active)!.label;
-  const dmLabel = DM_TYPE_OPTIONS.find((o) => o.value === inputs.dmType)?.label ?? inputs.dmType;
   const inputSummary =
     inputs.weight != null
-      ? `${dmLabel} · ${inputs.weight} ${inputs.unit} · ${inputs.gaWeeks ?? "–"} wk`
-      : `${dmLabel} · tap to enter details`;
+      ? `${inputs.weight} ${inputs.unit} · ${inputs.gaWeeks ?? "–"} wk`
+      : "tap to enter details";
   const bmiCat = model.bmi != null ? bmiCategory(model.bmi) : null;
 
   return (
@@ -121,11 +119,6 @@ export function App() {
         </div>
         <section className="view" style={{ paddingBottom: "var(--space-4)" }}>
           <div className="rail">
-          <div style={{ gridColumn: "1 / -1" }}>
-            <Labeled label="Diabetes type" hint="Sets glycemic targets · GDM A1 has no lower bound">
-              <Seg name="dmType" value={inputs.dmType} options={DM_TYPE_OPTIONS} onChange={(dmType: DmType) => patch({ dmType })} />
-            </Labeled>
-          </div>
           <NumberField
             label={`Current weight · ${inputs.unit}`}
             value={inputs.weight}

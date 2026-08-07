@@ -71,29 +71,6 @@ export const DEFAULT_CONFIG: Config = {
   adjustmentPct: 0.15,
 };
 
-// ── §3 Glycemic targets by diabetes type (ADA26 Table 15.2) ─────────────────
-export type DmType = "T1DM" | "T2DM" | "GDM_A2" | "GDM_A1";
-
-export interface GlycemicTargets {
-  fasting: [number | null, number];
-  pp1h: [number | null, number];
-  pp2h: [number | null, number];
-}
-
-/**
- * Capillary/plasma glucose targets by diabetes type (ADA26 Table 15.2; ES25
- * Rec 7 endorses the same framework). T1DM / T2DM / GDM-A2 share identical
- * ranges; GDM-A1 (diet-controlled) has NO lower bound. Use EITHER the 1-h OR
- * the 2-h postprandial target, not both. Lower bounds also do not apply to
- * T2DM managed with nutrition alone.
- */
-export function glycemicTargets(dm: DmType): GlycemicTargets {
-  if (dm === "GDM_A1") {
-    return { fasting: [null, 95], pp1h: [null, 140], pp2h: [null, 120] };
-  }
-  return { fasting: [70, 95], pp1h: [110, 140], pp2h: [100, 120] };
-}
-
 // ── §4.2 Total daily dose ───────────────────────────────────────────────────
 export type Trimester = "T1" | "T2" | "T3";
 

@@ -3,14 +3,13 @@
  *
  * Behavior changes go here, not scattered through the UI (CLAUDE.md §3). This
  * file holds: the starting-unit / titration-step knobs, the policy switches
- * that resolve the source conflicts (spec §14), the diabetes-type options, and
- * the synthetic demo prefill. Diabetes-type-aware glycemic targets live in
- * dosing.ts (`glycemicTargets`), not here.
+ * that resolve the source conflicts (spec §14), the synthetic demo prefill, and
+ * the display-only reference tables the UI renders (glycemic targets).
  *
  * The demo prefill is the ONLY patient-shaped data in the repo and is entirely
  * synthetic — never commit real patient data or identifiers (CLAUDE.md §6).
  */
-import type { Config, TDDSchedule, DmType } from "./logic/dosing";
+import type { Config, TDDSchedule } from "./logic/dosing";
 import { DEFAULT_CONFIG } from "./logic/dosing";
 
 // ── Tunable knobs ───────────────────────────────────────────────────────────
@@ -50,7 +49,6 @@ export type Stage = "pregnant" | "postpartum_0_6";
 export type ObesityDosing = "off" | "1.5" | "1.75" | "2.0";
 
 export interface PatientInputs {
-  dmType: DmType;
   weight: number | null;
   unit: Unit;
   gaWeeks: number | null;
@@ -59,17 +57,9 @@ export interface PatientInputs {
   obesityDosing: ObesityDosing;
 }
 
-export const DM_TYPE_OPTIONS: ReadonlyArray<{ value: DmType; label: string }> = [
-  { value: "T1DM", label: "T1DM" },
-  { value: "T2DM", label: "T2DM" },
-  { value: "GDM_A2", label: "GDM A2" },
-  { value: "GDM_A1", label: "GDM A1" },
-];
-
 /** Synthetic demonstration inputs — NOT a real patient. 90 kg at 10w reproduces
  *  the VB24 Table 3 worked example (TDD 63). */
 export const DEMO_PREFILL: PatientInputs = {
-  dmType: "GDM_A2",
   weight: 90,
   unit: "kg",
   gaWeeks: 10,
@@ -79,7 +69,6 @@ export const DEMO_PREFILL: PatientInputs = {
 };
 
 export const EMPTY_INPUTS: PatientInputs = {
-  dmType: "GDM_A2",
   weight: null,
   unit: "kg",
   gaWeeks: null,
@@ -88,8 +77,18 @@ export const EMPTY_INPUTS: PatientInputs = {
   obesityDosing: "off",
 };
 
-// Glycemic targets are now diabetes-type aware and live in dosing.ts
-// (`glycemicTargets`), which the Adjust tab reads directly.
+// ── Display-only reference: ADA26 glycemic targets (Table 15.2) ─────────────
+export interface GlycemicWindow {
+  label: string;
+  target: string;
+}
+
+/** ADA26 pregnancy goals shown on the Adjust tab. Source: insulin_parameters.json. */
+export const GLYCEMIC_TARGETS: GlycemicWindow[] = [
+  { label: "Fasting / pre-prandial", target: "70–95" },
+  { label: "1-h postprandial", target: "110–140" },
+  { label: "2-h postprandial", target: "100–120" },
+];
 
 export const HYPO_THRESHOLD_MGDL = APP_CONFIG.hypoThresholdMeter; // ADA26 <70 meter
 
