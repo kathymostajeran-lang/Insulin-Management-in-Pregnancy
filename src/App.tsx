@@ -26,6 +26,7 @@ import {
 import type { Config, TDDSchedule } from "./logic/dosing";
 import { deriveModel, bmiCategory } from "./model";
 import { NumberField, Seg, Labeled } from "./ui/controls";
+import type { AdjustPattern } from "./ui/types";
 import { StartTab } from "./ui/StartTab";
 import { LaborTab } from "./ui/LaborTab";
 import { AdjustTab } from "./ui/AdjustTab";
@@ -99,6 +100,8 @@ export function App() {
   const [config, setConfig] = useState<Config>(APP_CONFIG);
   const [active, setActive] = useState<View>("home");
   const [inputsOpen, setInputsOpen] = useState(false);
+  // Pattern handed from CGM into Adjust; consumed when Adjust mounts.
+  const [adjustSeed, setAdjustSeed] = useState<AdjustPattern | null>(null);
 
   const model = useMemo(() => deriveModel(inputs, config), [inputs, config]);
 
@@ -122,6 +125,8 @@ export function App() {
     setActive(view);
     const t = view === "home" ? null : TABS.find((x) => x.id === view)!;
     setInputsOpen(!!t?.needsInputs);
+    // A CGM→Adjust seed is one-shot: drop it unless we're heading to Adjust.
+    if (view !== "adjust") setAdjustSeed(null);
     if (typeof window !== "undefined") window.scrollTo({ top: 0 });
   }
 
@@ -291,7 +296,14 @@ export function App() {
       ) : (
         <main className="view" role="tabpanel" aria-label={activeLabel}>
           <button className="back-link" onClick={() => go("home")}>‹ All tasks</button>
-          <ActiveComp model={model} config={config} inputs={inputs} />
+          <ActiveComp
+            model={model}
+            config={config}
+            inputs={inputs}
+            onNavigate={(id) => go(id as View)}
+            adjustSeed={adjustSeed}
+            onSeedAdjust={setAdjustSeed}
+          />
         </main>
       )}
 

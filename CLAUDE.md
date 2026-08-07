@@ -83,8 +83,12 @@ Follow these exactly — they are what make the codebase safe and consistent.
 - **Expert knobs behind `Advanced`.** The guideline-set switch and the obesity multiplier live in a closed `<details className="advanced">` inside the inputs panel; defaults are unchanged, so hiding them alters no number.
 - These shell choices answer real usability feedback that the app was "complex to the point that if you know how to use it, you don't need it."
 
-### Progressive disclosure — the `ref-details` pattern
-- Modules **lead with the actionable answer**; intermediate arithmetic and static reference tables are tucked into a `<details className="ref-details">` ("Show the math", "Fluids", "Glycemic targets", etc.). Spec §0 still holds — the input/formula/source/arithmetic stay **present, one tap away**, never deleted. Blocking content (hard stops, `UnresolvedPolicyGap`, the DKA "not tailored for DKA/HHS" caveat, the CGM scorecard warning, the device disclaimer) stays **always visible**, never collapsed.
+### Cross-module flow — `onNavigate` / `adjustSeed` (TabProps)
+- Tabs can route onward (`onNavigate(id)`, e.g. Start → Adjust) and hand values across without re-typing: CGM classifies its four windows and calls `onSeedAdjust(pattern)` + `onNavigate("adjust")`; Adjust reads `adjustSeed` in its `useState` initializer. The seed is **one-shot** — `go()` clears it unless the target is Adjust, so a manual visit later starts clean. Keep any new handoff to derived, safe values (never aggregate CGM metrics — §A.4).
+
+### Progressive disclosure — the `ref-details` / `.answer` patterns
+- Modules **lead with the actionable answer** in an `.answer` surface (calm accent left-bar, distinct from the caution-colored `.alert`); intermediate arithmetic and static reference tables are tucked into a `<details className="ref-details">` ("Show the math", "Fluids", "Glycemic targets", etc.). Spec §0 still holds — the input/formula/source/arithmetic stay **present, one tap away**, never deleted. Blocking content (hard stops, `UnresolvedPolicyGap`, the DKA "not tailored for DKA/HHS" caveat, the CGM scorecard warning, the device disclaimer) stays **always visible**, never collapsed.
+- **Guide, don't decide.** Where the spec forbids auto-picking (e.g. C-13 postpartum), add a plain-language "how to choose" helper above the options rather than selecting for the user. Where a screen shows multiple pathways for different contexts (Hypo outpatient vs inpatient), let the user pick the context and show only the matching path, with the rest one tap away.
 - **No internal codes in the UI.** Conflict IDs (C-01…C-21) and `spec §N` tags live in comments only; rendered strings use plain language. Acronyms are glossed at point of use (TDD, DBW→"ideal wt", PP→"after-meal", HS→"Bedtime", SC/PO/CHO/MDI/SMBG). The footer carries a source-code legend (ADA26/ES25/VB24/UC23 → full names).
 
 ### UI — `src/ui/`
