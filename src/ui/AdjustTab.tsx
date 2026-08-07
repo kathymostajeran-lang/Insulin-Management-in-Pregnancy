@@ -50,9 +50,9 @@ export function AdjustTab({ model }: TabProps) {
 
   return (
     <>
-      <section className="card elev-sm">
-        <div className="card-kicker">Glycemic targets · ADA26</div>
-        <table className="dtab">
+      <details className="ref-details card elev-sm">
+        <summary>Glycemic targets · ADA26</summary>
+        <table className="dtab" style={{ marginTop: 8 }}>
           <tbody>
             {GLYCEMIC_TARGETS.map((t) => (
               <tr key={t.label}>
@@ -63,10 +63,10 @@ export function AdjustTab({ model }: TabProps) {
             <tr><td>Hypoglycemia threshold</td><td className="num" style={{ textAlign: "right" }}>&lt; {HYPO_THRESHOLD_MGDL}</td></tr>
           </tbody>
         </table>
-        <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>
+        <p className="text-muted" style={{ fontSize: 12, margin: "8px 0 0" }}>
           Use either the 1-h or the 2-h postprandial target, not both.
         </p>
-      </section>
+      </details>
 
       <section>
         <Kicker>Current regimen · units</Kicker>

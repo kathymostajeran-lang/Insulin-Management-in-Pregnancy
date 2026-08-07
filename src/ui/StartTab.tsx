@@ -31,11 +31,14 @@ export function StartTab({ model }: TabProps) {
           AM {c.am_total} · PM {c.pm_total} — NPH {c.am_nph + c.pm_nph_bedtime} · Lispro{" "}
           {c.am_short + c.pm_short_predinner}
         </p>
+        <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
+          NPH = background (intermediate-acting) · Lispro = mealtime (rapid-acting).
+        </p>
       </section>
 
-      <section className="card elev-sm">
-        <div className="card-kicker">Split, as the guide states it</div>
-        <table className="dtab">
+      <details className="ref-details card elev-sm">
+        <summary>Show the math — split, as the guide states it</summary>
+        <table className="dtab" style={{ marginTop: 8 }}>
           <tbody>
             <tr>
               <td>AM dose — ⅔ of TDD</td>
@@ -64,13 +67,13 @@ export function StartTab({ model }: TabProps) {
           </tbody>
         </table>
         <p className="text-muted" style={{ fontSize: 12, marginTop: 8 }}>
-          Inject into abdominal SC tissue. Rounded to whole units; remainder carried on the AM NPH
-          dose. Inpatient starts — consider perinatology.com.
+          Inject into abdominal subcutaneous (under-skin) tissue. Rounded to whole units; remainder
+          carried on the AM NPH dose. Inpatient starts — consider perinatology.com.
         </p>
         <div className="card-meta">
           <Cite>Regimen architecture: {r.source}</Cite>
         </div>
-      </section>
+      </details>
     </>
   );
 }

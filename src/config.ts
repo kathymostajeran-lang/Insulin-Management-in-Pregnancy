@@ -136,11 +136,11 @@ export interface PostpartumTargetTier {
   source: string;
 }
 export const POSTPARTUM_TARGETS: PostpartumTargetTier[] = [
-  { phase: "Inpatient", target: "FBG < 126 · 1-h PP < 180", source: "UC23" },
-  { phase: "Outpatient transition", target: "FBG < 100 · 1-h PP < 140", source: "UC23" },
-  { phase: "Breastfeeding", target: "1-h PP < 150", source: "UC23" },
+  { phase: "Inpatient", target: "fasting < 126 · 1-h after-meal < 180", source: "UC23" },
+  { phase: "Outpatient transition", target: "fasting < 100 · 1-h after-meal < 140", source: "UC23" },
+  { phase: "Breastfeeding", target: "1-h after-meal < 150", source: "UC23" },
   { phase: "Pump", target: "80–120", source: "UC23" },
-  { phase: "T2DM (acceptable)", target: "fasting 100–125 · random/PP 160–180", source: "VB24" },
+  { phase: "T2DM (acceptable)", target: "fasting 100–125 · random/after-meal 160–180", source: "VB24" },
 ];
 
 /** Synthetic demonstration CGM window — NOT a real patient. Slightly
