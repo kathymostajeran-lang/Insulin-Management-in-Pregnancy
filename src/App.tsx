@@ -130,6 +130,20 @@ export function App() {
     if (typeof window !== "undefined") window.scrollTo({ top: 0 });
   }
 
+  // Print a clean one-pager of the current module for the chart: expand every
+  // collapsed <details> so the math/sources print, then restore afterward.
+  function printSummary() {
+    if (typeof document === "undefined") return;
+    const collapsed = Array.from(document.querySelectorAll("details")).filter((d) => !d.open) as HTMLDetailsElement[];
+    collapsed.forEach((d) => (d.open = true));
+    const restore = () => {
+      collapsed.forEach((d) => (d.open = false));
+      window.removeEventListener("afterprint", restore);
+    };
+    window.addEventListener("afterprint", restore);
+    window.print();
+  }
+
   const activeTab = active === "home" ? null : TABS.find((t) => t.id === active)!;
   const ActiveComp = activeTab?.Comp;
   const activeLabel = activeTab?.label ?? "Menu";
@@ -295,7 +309,10 @@ export function App() {
         </main>
       ) : (
         <main className="view" role="tabpanel" aria-label={activeLabel}>
-          <button className="back-link" onClick={() => go("home")}>‹ All tasks</button>
+          <div className="module-actions">
+            <button className="back-link" onClick={() => go("home")}>‹ All tasks</button>
+            <button className="print-btn" onClick={printSummary}>Print / Save PDF</button>
+          </div>
           <ActiveComp
             model={model}
             config={config}
@@ -325,11 +342,50 @@ export function App() {
 /** Guided landing menu — routes a clinician to the right module in plain
  *  language, so knowing the tool isn't a prerequisite for using it. */
 function HomeMenu({ onPick }: { onPick: (id: TabId) => void }) {
+  const [triageOpen, setTriageOpen] = useState(false);
+  const [onInsulin, setOnInsulin] = useState<"" | "yes" | "no">("");
+  const [phase, setPhase] = useState<"" | "pregnant" | "labor" | "delivered">("");
+
+  let suggestion: { id: TabId; label: string } | null = null;
+  if (phase === "labor") suggestion = { id: "labor", label: "During labor" };
+  else if (phase === "delivered") suggestion = { id: "postpartum", label: "After delivery" };
+  else if (phase === "pregnant" && onInsulin === "yes") suggestion = { id: "adjust", label: "Adjust the doses" };
+  else if (phase === "pregnant" && onInsulin === "no") suggestion = { id: "start", label: "Start insulin" };
+
   return (
     <>
       <div className="home-hero">
         <h2>What do you need to do?</h2>
         <p>Pick a task and this tool walks you through it. Every number shows its source and math; nothing is prescribed for you.</p>
+      </div>
+
+      <div className="home-triage">
+        <button className="home-triage-toggle" onClick={() => setTriageOpen((v) => !v)} aria-expanded={triageOpen}>
+          Not sure where to start? Answer 2 questions {triageOpen ? "▾" : "›"}
+        </button>
+        {triageOpen ? (
+          <div className="home-triage-body">
+            <Labeled label="Is the patient already on insulin?">
+              <Seg name="tri-insulin" value={onInsulin} options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]} onChange={setOnInsulin} />
+            </Labeled>
+            <Labeled label="Pregnant, in labor, or delivered?">
+              <Seg
+                name="tri-phase"
+                value={phase}
+                options={[{ value: "pregnant", label: "Pregnant" }, { value: "labor", label: "In labor" }, { value: "delivered", label: "Delivered" }]}
+                onChange={setPhase}
+              />
+            </Labeled>
+            {suggestion ? (
+              <div className="home-triage-result">
+                <span>Go to <strong>{suggestion.label}</strong></span>
+                <button className="btn btn-primary" onClick={() => onPick(suggestion!.id)}>Open →</button>
+              </div>
+            ) : (
+              <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>Answer both to get a suggestion.</p>
+            )}
+          </div>
+        ) : null}
       </div>
       {GROUPS.map((grp) => {
         const items = TABS.filter((t) => t.group === grp.id);

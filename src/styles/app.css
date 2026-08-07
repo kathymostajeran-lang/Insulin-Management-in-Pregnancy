@@ -269,11 +269,44 @@ html, body {
   color: var(--color-accent-900); margin: 0 0 var(--space-2);
 }
 
-/* Back-to-menu link shown at the top of every module */
-.back-link {
+/* Module header row: back link on the left, print on the right */
+.module-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.back-link, .print-btn {
   appearance: none; background: transparent; border: 0; cursor: pointer;
-  justify-self: start; padding: 4px 0; min-height: 36px;
+  padding: 4px 0; min-height: 36px;
   font-family: var(--font-heading); font-weight: var(--font-heading-weight);
   font-size: 14px; color: var(--color-accent);
 }
-.back-link:hover { text-decoration: underline; }
+.back-link:hover, .print-btn:hover { text-decoration: underline; }
+
+/* Home 2-question triage — for users who can't tell the modules apart yet */
+.home-triage { display: grid; gap: var(--space-2); }
+.home-triage-toggle {
+  appearance: none; background: transparent; border: 0; cursor: pointer; justify-self: start;
+  padding: 4px 0; min-height: 40px;
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 14px; color: var(--color-accent);
+}
+.home-triage-body {
+  display: grid; gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider); border-left: 4px solid var(--color-accent);
+}
+.home-triage-result {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  flex-wrap: wrap; font-size: 15px;
+}
+
+/* ── Print: a clean one-pager for the chart ─────────────────────────── */
+@media print {
+  .topbar, .home-triage, .print-btn, .back-link, .app-sub, .btn,
+  .inputs-summary::after, .advanced { display: none !important; }
+  .app { max-width: none; margin: 0; }
+  .ref-details > summary::before, .advanced > summary::before,
+  .inputs-panel .inputs-summary::after { display: none !important; }
+  details > summary { color: var(--color-text); font-weight: 800; }
+  .inputs-panel, .safety, section, .card, .answer, .alert { break-inside: avoid; }
+  .demo-badge { border-color: #000; }
+  @page { margin: 1.4cm; }
+}
