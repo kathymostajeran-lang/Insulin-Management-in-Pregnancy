@@ -6,8 +6,16 @@
 import { useState } from "react";
 import { conventionalNphShort, titratePattern, type StandingRegimen, type WindowState } from "../logic/dosing";
 import { HYPO_THRESHOLD_MGDL, TITRATION_STEPS, GLYCEMIC_TARGETS } from "../config";
-import { Kicker, NumberField, Seg, Alert, Cite } from "./controls";
-import type { TabProps } from "./types";
+import { Kicker, NumberField, Seg, Alert, Cite, NeedInput } from "./controls";
+import type { TabProps, AdjustPattern } from "./types";
+
+const ZERO_REG: StandingRegimen = { amNph: 0, amLispro: 0, dinnerLispro: 0, bedtimeNph: 0 };
+const IN_RANGE: AdjustPattern = { fasting: "in_range", postBreakfast: "in_range", postLunch: "in_range", postDinner: "in_range" };
+
+function startRegimen(tddVal: number): StandingRegimen {
+  const c = conventionalNphShort(tddVal).components;
+  return { amNph: c.am_nph, amLispro: c.am_short, dinnerLispro: c.pm_short_predinner, bedtimeNph: c.pm_nph_bedtime };
+}
 
 const WINDOW_OPTS: ReadonlyArray<{ value: WindowState; label: string }> = [
   { value: "in_range", label: "In range" },
@@ -22,31 +30,27 @@ const WINDOWS = [
   { key: "postDinner", label: "Post-dinner", target: "110–140", drives: "Dinner lispro" },
 ] as const;
 
-export function AdjustTab({ model }: TabProps) {
-  const [reg, setReg] = useState<StandingRegimen>({ amNph: 0, amLispro: 0, dinnerLispro: 0, bedtimeNph: 0 });
+export function AdjustTab({ model, adjustSeed }: TabProps) {
+  // Auto-prefill the current regimen from the calculated start dose (if a TDD is
+  // available); the Clear button is the escape. Seed the weekly pattern from a
+  // CGM hand-off when present.
+  const [reg, setReg] = useState<StandingRegimen>(() => (model.tdd ? startRegimen(model.tdd.tdd) : ZERO_REG));
   const [step, setStep] = useState<number>(TITRATION_STEPS[0]);
-  const [pattern, setPattern] = useState({
-    fasting: "in_range" as WindowState,
-    postBreakfast: "in_range" as WindowState,
-    postLunch: "in_range" as WindowState,
-    postDinner: "in_range" as WindowState,
-  });
+  const [pattern, setPattern] = useState<AdjustPattern>(() => (adjustSeed ? { ...adjustSeed } : { ...IN_RANGE }));
 
   const tdd = model.tdd?.tdd ?? 0;
 
   function prefill() {
     if (!model.tdd) return;
-    const c = conventionalNphShort(model.tdd.tdd).components;
-    setReg({
-      amNph: c.am_nph,
-      amLispro: c.am_short,
-      dinnerLispro: c.pm_short_predinner,
-      bedtimeNph: c.pm_nph_bedtime,
-    });
+    setReg(startRegimen(model.tdd.tdd));
   }
 
   const result = titratePattern(reg, pattern, step, tdd);
   const a = result.adjusted;
+
+  const regEmpty = reg.amNph === 0 && reg.amLispro === 0 && reg.dinnerLispro === 0 && reg.bedtimeNph === 0;
+  const changed =
+    a.amNph !== reg.amNph || a.amLispro !== reg.amLispro || a.dinnerLispro !== reg.dinnerLispro || a.bedtimeNph !== reg.bedtimeNph;
 
   return (
     <>
@@ -68,21 +72,30 @@ export function AdjustTab({ model }: TabProps) {
         </p>
       </details>
 
+      {adjustSeed ? (
+        <p className="text-muted" style={{ fontSize: 13, margin: 0 }}>
+          Pattern carried over from the CGM report — confirm the current doses below.
+        </p>
+      ) : null}
+
       <section>
-        <Kicker>Current regimen · units</Kicker>
+        <Kicker>1 · Current regimen · units</Kicker>
         <div className="rail" style={{ marginTop: 8 }}>
           <NumberField label="AM NPH" value={reg.amNph} onChange={(v) => setReg((r) => ({ ...r, amNph: v ?? 0 }))} min={0} />
           <NumberField label="AM lispro" value={reg.amLispro} onChange={(v) => setReg((r) => ({ ...r, amLispro: v ?? 0 }))} min={0} />
           <NumberField label="Dinner lispro" value={reg.dinnerLispro} onChange={(v) => setReg((r) => ({ ...r, dinnerLispro: v ?? 0 }))} min={0} />
           <NumberField label="Bedtime NPH" value={reg.bedtimeNph} onChange={(v) => setReg((r) => ({ ...r, bedtimeNph: v ?? 0 }))} min={0} />
         </div>
-        <button className="btn btn-ghost" style={{ marginTop: 8 }} onClick={prefill} disabled={!model.tdd}>
-          Prefill from calculated start dose
-        </button>
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <button className="btn btn-secondary" onClick={prefill} disabled={!model.tdd}>
+            Prefill from calculated start dose
+          </button>
+          <button className="btn btn-ghost" onClick={() => setReg({ ...ZERO_REG })}>Clear</button>
+        </div>
       </section>
 
       <section>
-        <Kicker>Review the last week&apos;s pattern</Kicker>
+        <Kicker>2 · Review the last week&apos;s pattern</Kicker>
         <p className="text-muted" style={{ fontSize: 12 }}>
           Move a dose on a pattern, not one reading — flag a window when &gt; 30% of its values sit
           outside target.
@@ -114,13 +127,22 @@ export function AdjustTab({ model }: TabProps) {
       </section>
 
       <section>
-        <Kicker>Adjusted regimen</Kicker>
-        <div className="rows" style={{ marginTop: 8 }}>
-          <AdjRow label="AM NPH" from={reg.amNph} to={a.amNph} />
-          <AdjRow label="AM lispro" from={reg.amLispro} to={a.amLispro} />
-          <AdjRow label="Dinner lispro" from={reg.dinnerLispro} to={a.dinnerLispro} />
-          <AdjRow label="Bedtime NPH" from={reg.bedtimeNph} to={a.bedtimeNph} />
-        </div>
+        <Kicker>3 · Adjusted result</Kicker>
+        {regEmpty ? (
+          <NeedInput>Enter the current doses above, or tap “Prefill from calculated start dose”.</NeedInput>
+        ) : (
+          <div className="answer" style={{ marginTop: 8 }}>
+            {!changed ? (
+              <p className="answer-lead">No change — all windows in target. Continue the current doses.</p>
+            ) : null}
+            <div className="rows">
+              <AdjRow label="AM NPH" from={reg.amNph} to={a.amNph} />
+              <AdjRow label="AM lispro" from={reg.amLispro} to={a.amLispro} />
+              <AdjRow label="Dinner lispro" from={reg.dinnerLispro} to={a.dinnerLispro} />
+              <AdjRow label="Bedtime NPH" from={reg.bedtimeNph} to={a.bedtimeNph} />
+            </div>
+          </div>
+        )}
         <div className="card-meta" style={{ marginTop: 8 }}>
           <Cite>Trigger &gt;30% of a window out of target · cadence 2–3 days · step 10–20% (VB24, ADA26)</Cite>
         </div>

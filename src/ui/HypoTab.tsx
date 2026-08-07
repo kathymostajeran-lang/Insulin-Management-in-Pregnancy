@@ -26,8 +26,13 @@ const YN: ReadonlyArray<{ value: "yes" | "no"; label: string }> = [
   { value: "yes", label: "Yes" },
   { value: "no", label: "No" },
 ];
+const SETTING_OPTS: ReadonlyArray<{ value: "outpatient" | "inpatient"; label: string }> = [
+  { value: "outpatient", label: "Outpatient / home" },
+  { value: "inpatient", label: "Inpatient" },
+];
 
 export function HypoTab({ config }: TabProps) {
+  const [setting, setSetting] = useState<"outpatient" | "inpatient">("outpatient");
   const [source, setSource] = useState<GlucoseSource>("meter");
   const [value, setValue] = useState<number | null>(58);
   const [conscious, setConscious] = useState<"yes" | "no">("yes");
@@ -68,7 +73,16 @@ export function HypoTab({ config }: TabProps) {
         </div>
       </section>
 
+      {/* ── Care setting — show only the matching pathway ─────────── */}
+      <section>
+        <Kicker>Where are you treating this?</Kicker>
+        <div style={{ marginTop: 8 }}>
+          <Seg name="setting" value={setting} options={SETTING_OPTS} onChange={setSetting} />
+        </div>
+      </section>
+
       {/* ── Outpatient Rule of 15 ─────────────────────────────────── */}
+      {setting === "outpatient" ? (
       <section className="card elev-sm">
         <div className="card-kicker">Outpatient · Rule of 15</div>
         <table className="dtab">
@@ -82,8 +96,10 @@ export function HypoTab({ config }: TabProps) {
         </table>
         <div className="card-meta"><Cite>{OUTPATIENT_HYPO.source}</Cite></div>
       </section>
+      ) : null}
 
       {/* ── Inpatient rescue ladder ───────────────────────────────── */}
+      {setting === "inpatient" ? (
       <section>
         <Kicker>Inpatient rescue · UC23</Kicker>
         <div className="rail" style={{ marginTop: 8 }}>
@@ -111,23 +127,27 @@ export function HypoTab({ config }: TabProps) {
             ) : null}
           </Alert>
         ) : null}
-        <table className="dtab" style={{ marginTop: 12 }}>
-          <thead>
-            <tr>
-              <th>Condition</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {INPATIENT_LADDER.map((r) => (
-              <tr key={r.condition}>
-                <td>{r.condition}</td>
-                <td>{r.action}</td>
+        <details className="ref-details" style={{ marginTop: 12 }}>
+          <summary>Full rescue ladder (all conditions)</summary>
+          <table className="dtab" style={{ marginTop: 8 }}>
+            <thead>
+              <tr>
+                <th>Condition</th>
+                <th>Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {INPATIENT_LADDER.map((r) => (
+                <tr key={r.condition}>
+                  <td>{r.condition}</td>
+                  <td>{r.action}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
       </section>
+      ) : null}
 
       {/* ── Glucagon ──────────────────────────────────────────────── */}
       <section className="card">

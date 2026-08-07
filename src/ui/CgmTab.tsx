@@ -18,8 +18,9 @@ import {
 } from "../logic/dosing";
 import { DEMO_CGM, FASTING_TARGET, PP1H_TARGET, type CgmInputs } from "../config";
 import { Kicker, NumberField, Alert, Cite } from "./controls";
+import type { TabProps, AdjustPattern } from "./types";
 
-export function CgmTab() {
+export function CgmTab({ onNavigate, onSeedAdjust }: TabProps) {
   const [cgm, setCgm] = useState<CgmInputs>(DEMO_CGM);
   function patch(p: Partial<CgmInputs>) {
     setCgm((prev) => ({ ...prev, ...p }));
@@ -144,9 +145,25 @@ export function CgmTab() {
                 </div>
               ))}
             </div>
+            <button
+              className="btn btn-primary"
+              style={{ marginTop: 12 }}
+              onClick={() => {
+                const seed: AdjustPattern = {
+                  fasting: tagged[0].state ?? "in_range",
+                  postBreakfast: tagged[1].state ?? "in_range",
+                  postLunch: tagged[2].state ?? "in_range",
+                  postDinner: tagged[3].state ?? "in_range",
+                };
+                onSeedAdjust?.(seed);
+                onNavigate?.("adjust");
+              }}
+            >
+              Continue to Adjust with these values →
+            </button>
             <p className="text-muted" style={{ fontSize: 12, marginTop: 8 }}>
-              Carry these window states to the <strong>Adjust</strong> tab — the dose change runs on
-              these tagged values, using the same engine as finger-stick (home glucose) readings.
+              The dose change runs on these tagged values, using the same engine as finger-stick
+              (home glucose) readings.
             </p>
           </>
         ) : (

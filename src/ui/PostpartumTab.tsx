@@ -52,6 +52,20 @@ export function PostpartumTab({ model }: TabProps) {
         </div>
       </section>
 
+      <section className="card elev-sm">
+        <div className="card-kicker">How to choose a method</div>
+        <table className="dtab">
+          <tbody>
+            <tr><td>On insulin <strong>before</strong> pregnancy</td><td>use the prepregnancy-TDD reference (≈66% of prepregnancy)</td></tr>
+            <tr><td>GDM / T2DM diagnosed <strong>in</strong> pregnancy</td><td>use a % of the end-pregnancy (or third-trimester) TDD</td></tr>
+            <tr><td>No prior TDD recorded</td><td>use the weight-based estimate (0.4 u/kg)</td></tr>
+          </tbody>
+        </table>
+        <p className="text-muted" style={{ fontSize: 12, margin: "8px 0 0" }}>
+          Guidance only — pick the method that matches the situation, then confirm the dose below.
+        </p>
+      </section>
+
       <section>
         <Kicker>Starting dose options · clinician selects</Kicker>
         {rows.length ? (
