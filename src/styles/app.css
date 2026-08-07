@@ -163,3 +163,50 @@ html, body {
 .input, .switcher { font-size: 16px; }
 .seg-opt { padding: 9px 14px; }
 .tab { min-height: 44px; }
+
+/* ── Guided home menu ───────────────────────────────────────────────── */
+.home-hero h2 { font-size: 21px; margin: 0 0 4px; }
+.home-hero p {
+  font-size: 13px; margin: 0; line-height: 1.45;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+}
+.home-group { display: grid; gap: var(--space-2); }
+.home-group-label { margin-bottom: 2px; }
+.home-cards { display: grid; gap: var(--space-2); grid-template-columns: 1fr; }
+@media (min-width: 560px) { .home-cards { grid-template-columns: 1fr 1fr; } }
+
+.home-card {
+  appearance: none; cursor: pointer; text-align: left; font-family: inherit;
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-3);
+  min-height: 68px; padding: var(--space-3) var(--space-4);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider); border-radius: var(--radius-md);
+  transition: border-color 0.12s ease;
+}
+.home-card:hover { border-color: var(--color-accent); }
+.home-card:focus-visible {
+  outline: none; border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-100);
+}
+.home-card-title {
+  display: block;
+  font-family: var(--font-heading); font-weight: 800; font-size: 16px;
+}
+.home-card-when {
+  display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.4;
+  color: color-mix(in srgb, var(--color-text) 58%, transparent);
+}
+.home-card-go {
+  font-family: var(--font-heading); font-weight: 800; font-size: 24px;
+  color: var(--color-accent); line-height: 1;
+}
+
+/* Back-to-menu link shown at the top of every module */
+.back-link {
+  appearance: none; background: transparent; border: 0; cursor: pointer;
+  justify-self: start; padding: 4px 0; min-height: 36px;
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 14px; color: var(--color-accent);
+}
+.back-link:hover { text-decoration: underline; }
